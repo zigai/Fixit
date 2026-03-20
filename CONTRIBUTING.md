@@ -2,7 +2,7 @@
 
 ## Setup
 
-Fixit requires Python 3.9 or newer. We recommend using [uv][] to install Python:
+Fixit requires Python 3.10 or newer. We recommend using [uv][] to install Python:
 
 ```shell-session
 $ uv python install 3.13
@@ -10,13 +10,14 @@ $ uv python install 3.13
 $ uv python pin 3.13
 ```
 
-You can then use `make` to create a new environment and install dependencies:
+You can then sync a local development environment with `just`:
 
 ```shell-session
-$ make venv
+$ just sync
 ```
 
-Once created, activate the environment:
+This installs all project extras into `.venv` and sets up the local
+`pre-commit` hooks. Once created, activate the environment:
 
 ```shell-session
 $ source .venv/bin/activate
@@ -35,30 +36,34 @@ Once activated, Fixit can be run locally:
 To run the test suite, type checker, and linters:
 
 ```shell-session
-$ make test
+$ just test
 
-$ make lint
+$ just lint
+
+$ just typecheck
 ```
 
 To format code, sort imports, and apply automatic lint fixes:
 
 ```shell-session
-$ make format
+$ just fix
+
+$ just format
 ```
 
 Documentation is built using sphinx. You can generate and view the documentation
 locally in your browser:
 
 ```shell-session
-$ make html
+$ just docs
 
 $ open html/index.html
 ```
 
-To run the full test, typecheck, lint suite, and build the docs all at once:
+To run the full test, lint, typecheck, spell-check, and header-check suite:
 
 ```shell-session
-$ make
+$ just check
 ```
 
 
@@ -89,12 +94,11 @@ $ ghstack submit
 You can ensure your changes are well formatted, and imports are sorted:
 
 ```shell-session
-$ make format
+$ just format
 ```
 
-If you are using VS Code as your editor, you can use the
-[µfmt plugin for VSCode](https://marketplace.visualstudio.com/items?itemName=omnilib.ufmt)
-to easily enable formatting and import sorting while developing.
+If you are using VS Code as your editor, enable Ruff for formatting and linting
+to match the project workflow.
 
 
 ## VS Code
@@ -102,7 +106,7 @@ to easily enable formatting and import sorting while developing.
 Make sure you've created an environment for Fixit:
 
 ```shell-session
-$ make venv
+$ just sync
 ```
 
 Now, the VS Code Python module should be able to find and offer the local

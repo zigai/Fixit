@@ -6,10 +6,10 @@
 from pathlib import Path
 from textwrap import dedent, indent
 
+from jinja2 import Template
+
 from fixit.config import find_rules
 from fixit.ftypes import QualifiedRule
-
-from jinja2 import Template
 
 RULES = ["fixit.rules", "fixit.rules.extra", "fixit.upgrade"]
 
@@ -19,7 +19,7 @@ PAGE_TPL = Template(
     r"""
 ..
    THIS FILE IS GENERATED - DO NOT EDIT BY HAND!
-   Run `make html` or `scripts/document_rules.py` to regenerate this file.
+   Run `just docs` or `python scripts/document_rules.py` to regenerate this file.
 
 .. _builtin-rules:
 

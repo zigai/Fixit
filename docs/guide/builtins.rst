@@ -1,7 +1,7 @@
 
 ..
    THIS FILE IS GENERATED - DO NOT EDIT BY HAND!
-   Run `make html` or `scripts/document_rules.py` to regenerate this file.
+   Run `just docs` or `python scripts/document_rules.py` to regenerate this file.
 
 .. _builtin-rules:
 
