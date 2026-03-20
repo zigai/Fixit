@@ -17,7 +17,6 @@ jobs:
       fail-fast: false
       matrix:
         python-version:
-          - "3.9"
           - "3.10"
           - "3.11"
           - "3.12"
@@ -38,9 +37,11 @@ jobs:
           python-version: ${{ matrix.python-version }}
           activate-environment: true
       - name: Install
-        run: make EXTRAS=dev,lsp install
+        run: uv sync --inexact --extra dev --extra lsp
       - name: Test
-        run: make test
+        run: uv run --extra dev --extra lsp python -m fixit.tests
+      - name: Pyright
+        run: uv run --extra dev pyright
   
   pyrefly:
     runs-on: ubuntu-latest
@@ -52,9 +53,9 @@ jobs:
           python-version: "3.12"
           activate-environment: true
       - name: Install
-        run: make EXTRAS=dev install
+        run: uv sync --inexact --extra dev
       - name: Pyrefly
-        run: pyrefly check -c pyproject.toml
+        run: uv run --extra dev pyrefly check -c pyproject.toml
 
   docs:
     runs-on: ubuntu-latest
@@ -66,9 +67,11 @@ jobs:
           python-version: "3.12"
           activate-environment: true
       - name: Install
-        run: make EXTRAS=docs install
+        run: uv sync --inexact --extra docs
       - name: Docs
-        run: make html
+        run: |
+          uv run --extra docs python scripts/document_rules.py
+          uv run --extra docs sphinx-build -ab html docs html
       - name: Generated changes
         run: git diff --exit-code
 
@@ -84,9 +87,9 @@ jobs:
           python-version: '3.12'
           activate-environment: true
       - name: Install
-        run: make EXTRAS=dev install
+        run: uv sync --inexact --extra dev
       - name: Build
-        run: python -m build
+        run: uv build
       - name: Upload
         uses: actions/upload-artifact@v7
         with:
