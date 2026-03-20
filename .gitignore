@@ -103,8 +103,7 @@ venv.bak/
 # mkdocs documentation
 /site
 
-# mypy
-.mypy_cache/
+.ruff_cache/
 
 # Visual Studio Code
 .vscode/

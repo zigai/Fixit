@@ -23,7 +23,7 @@ classifiers = [
     "Topic :: Software Development :: Quality Assurance",
 ]
 
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
     "click >= 8.0, < 8.2",
     "libcst >= 0.3.18",
@@ -46,12 +46,15 @@ dev = [
     "attribution == 1.8.0",
     "black == 25.11.0",
     "build > 1",
-    "flake8 == 7.3.0",
-    "flake8-bugbear == 24.12.12",
-    "mypy == 1.19.1",
+    "codespell",
+    "coverage",
+    "pre-commit",
+    "pyright",
+    "tomli",
     "ufmt == 2.8.0",
     "usort == 1.0.8.post1",
     "pyrefly == 0.54.0",
+    "ruff",
 ]
 lsp = [
     "pygls[ws] ~= 2.0.0",
@@ -76,7 +79,7 @@ version_file = false
 ignored_authors = ["dependabot"]
 
 [tool.black]
-target-version = ["py39"]
+target-version = ["py310"]
 
 [tool.fixit]
 enable = ["fixit.rules"]
@@ -100,11 +103,170 @@ exclude = [
     "/legacy",
 ]
 
-[tool.mypy]
-strict = true
-python_version = "3.9"
-ignore_missing_imports = true
-warn_unused_ignores = false
+[tool.pyright]
+include = ["src/fixit"]
+extraPaths = ["src"]
+pythonVersion = "3.10"
+typeCheckingMode = "standard"
+reportMissingTypeStubs = false
+reportPrivateImportUsage = "none"
+reportUnnecessaryTypeIgnoreComment = "warning"
+reportMissingParameterType = "warning"
+
+[tool.codespell]
+skip = ".git,uv.lock"
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "ANN003",
+    "COM",
+    "CPY",
+    "D100",
+    "D101",
+    "D102",
+    "D103",
+    "D104",
+    "D105",
+    "D106",
+    "D107",
+    "D203",
+    "D205",
+    "D212",
+    "DJ",
+    "E501",
+    "EM101",
+    "EM102",
+    "ERA",
+    "FBT001",
+    "FBT002",
+    "FIX",
+    "N806",
+    "PGH004",
+    "PIE804",
+    "PLC0415",
+    "PLR0904",
+    "PLR0912",
+    "PLR0913",
+    "PLR0915",
+    "PLR1711",
+    "PLR2004",
+    "PLW0603",
+    "PLW2901",
+    "PYI041",
+    "PYI046",
+    "PYI047",
+    "PYI049",
+    "PYI051",
+    "PYI053",
+    "PYI054",
+    "RET501",
+    "RET504",
+    "RSE102",
+    "S101",
+    "SIM105",
+    "SIM910",
+    "SLF001",
+    "T20",
+    "TC001",
+    "TC002",
+    "TC003",
+    "TC006",
+    "TD",
+    "TRY003",
+]
+exclude = ["build"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["E402", "F401"]
+"docs/conf.py" = ["INP001"]
+"examples/*.py" = ["INP001"]
+"examples/**/*.py" = ["INP001"]
+"scripts/*.py" = ["INP001"]
+"src/fixit/tests/*.py" = [
+    "A002",
+    "A004",
+    "ANN001",
+    "ANN201",
+    "ANN202",
+    "ANN204",
+    "ANN401",
+    "ARG",
+    "EM102",
+    "FBT001",
+    "FLY002",
+    "INP001",
+    "N806",
+    "PLW0108",
+    "RUF003",
+    "RUF012",
+    "S",
+    "SIM300",
+    "TRY004",
+    "UP006",
+    "UP007",
+    "UP031",
+    "UP035",
+    "UP045",
+]
+"src/fixit/tests/**/*.py" = [
+    "A002",
+    "A004",
+    "ANN001",
+    "ANN201",
+    "ANN202",
+    "ANN204",
+    "ANN401",
+    "ARG",
+    "EM102",
+    "FBT001",
+    "FLY002",
+    "INP001",
+    "N806",
+    "PLW0108",
+    "RUF003",
+    "RUF012",
+    "S",
+    "SIM300",
+    "TRY004",
+    "UP006",
+    "UP007",
+    "UP031",
+    "UP035",
+    "UP045",
+]
+
+[tool.ruff.lint.pep8-naming]
+classmethod-decorators = [
+    "pydantic.validator",
+    "declared_attr",
+    "expression",
+    "comparator",
+]
+
+[tool.ruff.lint.flake8-builtins]
+ignorelist = ["id", "input"]
+
+[tool.ruff.lint.flake8-type-checking]
+runtime-evaluated-base-classes = [
+    "pydantic.BaseModel",
+    "sqlalchemy.orm.DeclarativeBase",
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "lf"
+
+[tool.ruff.lint.isort]
+known-first-party = ["fixit"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
 
 [tool.pyrefly]
 project_includes = [
