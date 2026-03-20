@@ -19,7 +19,7 @@ class UseAssertIn(LintRule):
 
     MESSAGE: str = (
         "Use assertIn/assertNotIn instead of assertTrue/assertFalse for inclusion check.\n"
-         "See https://docs.python.org/3/library/unittest.html#unittest.TestCase.assertIn)"
+        "See https://docs.python.org/3/library/unittest.html#unittest.TestCase.assertIn)"
     )
 
     VALID = [

@@ -48,8 +48,8 @@ def validate_patch(report: Any, test_case: Invalid) -> None:
     if patched_code != expected_replacement:
         raise AssertionError(
             "Auto-fix did not produce expected result.\n"
-             f"Expected:\n{expected_replacement}\n"
-             f"But found:\n{patched_code}"
+            f"Expected:\n{expected_replacement}\n"
+            f"But found:\n{patched_code}"
         )
 
 
@@ -88,8 +88,7 @@ class LintRuleTestCase(unittest.TestCase):
             len(reports),
             0,
             'Expected a report for this "invalid" test case but `self.report` was '
-             "not called:\n"
-            + test_case.code,
+            "not called:\n" + test_case.code,
         )
 
         for report in reports:

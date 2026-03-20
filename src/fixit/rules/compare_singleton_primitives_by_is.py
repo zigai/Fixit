@@ -20,7 +20,7 @@ class CompareSingletonPrimitivesByIs(LintRule):
 
     MESSAGE: str = (
         "Comparisons to singleton primitives should not be done with == or !=, as they check equality rather than identity."
-         " Use `is` or `is not` instead."
+        " Use `is` or `is not` instead."
     )
     METADATA_DEPENDENCIES = (QualifiedNameProvider,)
     VALID = [
@@ -108,9 +108,7 @@ class CompareSingletonPrimitivesByIs(LintRule):
         if needs_report:
             self.report(node, replacement=node.with_changes(comparisons=altered_comparisons))
 
-    def alter_operator(
-        self, original_op: cst.Equal | cst.NotEqual
-    ) -> cst.Is | cst.IsNot:
+    def alter_operator(self, original_op: cst.Equal | cst.NotEqual) -> cst.Is | cst.IsNot:
         return (
             cst.IsNot(
                 whitespace_before=original_op.whitespace_before,

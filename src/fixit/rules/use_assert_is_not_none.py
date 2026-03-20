@@ -21,7 +21,7 @@ class UseAssertIsNotNone(LintRule):
 
     MESSAGE: str = (
         '"assertTrue" and "assertFalse" are deprecated. Use "assertIsNotNone" and "assertIsNone" instead.\n'
-         "See https://docs.python.org/3.8/library/unittest.html#deprecated-aliases"
+        "See https://docs.python.org/3.8/library/unittest.html#deprecated-aliases"
     )
 
     VALID = [

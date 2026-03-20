@@ -17,7 +17,7 @@ class NoRedundantArgumentsSuper(LintRule):
 
     MESSAGE: str = (
         "Do not use arguments when calling super for the parent class. See "
-         "https://www.python.org/dev/peps/pep-3135/"
+        "https://www.python.org/dev/peps/pep-3135/"
     )
     VALID = [
         Valid(

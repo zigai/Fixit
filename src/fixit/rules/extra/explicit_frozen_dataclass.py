@@ -22,8 +22,8 @@ class ExplicitFrozenDataclass(LintRule):
 
     MESSAGE: str = (
         "When using dataclasses, explicitly specify a frozen keyword argument. "
-         "Example: `@dataclass(frozen=True)` or `@dataclass(frozen=False)`. "
-         "Docs: https://docs.python.org/3/library/dataclasses.html"
+        "Example: `@dataclass(frozen=True)` or `@dataclass(frozen=False)`. "
+        "Docs: https://docs.python.org/3/library/dataclasses.html"
     )
     METADATA_DEPENDENCIES = (QualifiedNameProvider,)
     VALID = [

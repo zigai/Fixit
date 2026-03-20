@@ -25,8 +25,8 @@ class CollapseIsinstanceChecks(LintRule):
 
     MESSAGE: str = (
         "Multiple isinstance calls with the same target but "
-         "different types can be collapsed into a single call "
-         "with a tuple of types."
+        "different types can be collapsed into a single call "
+        "with a tuple of types."
     )
 
     METADATA_DEPENDENCIES = (QualifiedNameProvider,)
@@ -77,15 +77,15 @@ class CollapseIsinstanceChecks(LintRule):
         ),
         Invalid(
             "isinstance(x, a) or isinstance(x, b) or isinstance(y, c) or isinstance(y, d) "
-             "or isinstance(z, e)",
+            "or isinstance(z, e)",
             expected_replacement="isinstance(x, (a, b)) or isinstance(y, (c, d)) or isinstance(z, e)",
         ),
         Invalid(
             "isinstance(x, a) or isinstance(x, b) or isinstance(y, c) or isinstance(y, d) "
-             "or isinstance(z, e) or isinstance(q, f) or isinstance(q, g) or isinstance(q, h)",
+            "or isinstance(z, e) or isinstance(q, f) or isinstance(q, g) or isinstance(q, h)",
             expected_replacement=(
                 "isinstance(x, (a, b)) or isinstance(y, (c, d)) or isinstance(z, e)"
-                 " or isinstance(q, (f, g, h))"
+                " or isinstance(q, (f, g, h))"
             ),
         ),
     ]

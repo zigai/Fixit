@@ -11,8 +11,8 @@ from fixit import Invalid, LintRule, Valid
 
 REPLACE_BUILTIN_TYPE_ANNOTATION: str = (
     "You are using builtins.{builtin_type} as a type annotation "
-     "but the type system doesn't recognize it as a valid type."
-     " You should use typing.{correct_type} instead."
+    "but the type system doesn't recognize it as a valid type."
+    " You should use typing.{correct_type} instead."
 )
 
 BUILTINS_TO_REPLACE: set[str] = {"dict", "list", "set", "tuple"}

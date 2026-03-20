@@ -18,7 +18,7 @@ class ReplaceUnionWithOptional(LintRule):
 
     MESSAGE: str = (
         "`Optional[T]` is preferred over `Union[T, None]` or `Union[None, T]`. "
-         "Learn more: https://docs.python.org/3/library/typing.html#typing.Optional"
+        "Learn more: https://docs.python.org/3/library/typing.html#typing.Optional"
     )
     METADATA_DEPENDENCIES = (ScopeProvider,)
     VALID = [

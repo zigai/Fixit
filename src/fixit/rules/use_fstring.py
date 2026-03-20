@@ -93,8 +93,8 @@ class UseFstring(LintRule):
 
     MESSAGE: str = (
         "Do not use printf style formatting or .format(). "
-         "Use f-string instead to be more readable and efficient. "
-         "See https://www.python.org/dev/peps/pep-0498/"
+        "Use f-string instead to be more readable and efficient. "
+        "See https://www.python.org/dev/peps/pep-0498/"
     )
 
     VALID = [

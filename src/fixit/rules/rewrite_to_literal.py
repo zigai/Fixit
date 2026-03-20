@@ -12,12 +12,12 @@ from fixit import Invalid, LintRule, Valid
 
 UNNECESSARY_LITERAL: str = (
     "It's unnecessary to use a list or tuple within a call to {func} since"
-     " there is literal syntax for this type"
+    " there is literal syntax for this type"
 )
 UNNCESSARY_CALL: str = (
     "It's slower to call {func}() than using the empty literal, because"
-     " the name {func} must be looked up in the global scope in case it has"
-     " been rebound."
+    " the name {func} must be looked up in the global scope in case it has"
+    " been rebound."
 )
 
 

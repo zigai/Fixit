@@ -11,11 +11,11 @@ from fixit import Invalid, LintRule, Valid
 
 UNNECESSARY_GENERATOR: str = (
     "It's unnecessary to use {func} around a generator expression, since "
-     "there are equivalent comprehensions for this type."
+    "there are equivalent comprehensions for this type."
 )
 UNNECESSARY_LIST_COMPREHENSION: str = (
     "It's unnecessary to use a list comprehension inside a call to {func} "
-     "since there are equivalent comprehensions for this type"
+    "since there are equivalent comprehensions for this type"
 )
 
 

@@ -21,7 +21,7 @@ class NoAssertTrueForComparisons(LintRule):
 
     MESSAGE: str = (
         '"assertTrue" does not compare its arguments, use "assertEqual" or other '
-         "appropriate functions."
+        "appropriate functions."
     )
 
     VALID = [
