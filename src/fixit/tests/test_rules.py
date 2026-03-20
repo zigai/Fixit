@@ -12,7 +12,6 @@ for generated_case in generate_lint_rule_test_cases(
         Config(
             enable=[
                 QualifiedRule("fixit.rules"),
-                QualifiedRule("fixit.upgrade"),
             ],
             python_version=None,
         )

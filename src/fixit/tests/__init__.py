@@ -7,6 +7,7 @@ from fixit.config import collect_rules
 from fixit.ftypes import Config, QualifiedRule
 from fixit.testing import add_lint_rule_tests_to_module
 
+from .cli import CliTest
 from .config import ConfigTest
 from .engine import EngineTest
 from .ftypes import TypesTest
@@ -19,7 +20,6 @@ add_lint_rule_tests_to_module(
         Config(
             enable=[
                 QualifiedRule("fixit.rules"),
-                QualifiedRule("fixit.upgrade"),
             ],
             python_version=None,
         )

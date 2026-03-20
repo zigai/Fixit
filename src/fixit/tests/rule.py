@@ -91,7 +91,7 @@ class ExerciseReportRule(LintRule):
         return False
 
     def visit_Del(self, node: cst.Del) -> bool:
-        self.report(node)
+        self.report(node, self.MESSAGE)
         return False
 
 
@@ -147,7 +147,7 @@ class RuleTest(TestCase):
             None,
         )
 
-    def test_del_no_message(self) -> None:
+    def test_del_uses_class_message(self) -> None:
         runner = LintRunner(Path("fake.py"), b"del foo")
 
         # Since the "del foo" code is part of a Module and ExerciseReportRule() visit's the Module
@@ -172,6 +172,10 @@ class RuleTest(TestCase):
             del_violation.node,
             None,
         )
+
+    def test_report_requires_message(self) -> None:
+        with self.assertRaises(TypeError):
+            self.rules[0].report(cst.Pass())
 
     def test_ignore_lint(self) -> None:
         for idx, (code, message, position) in enumerate(
