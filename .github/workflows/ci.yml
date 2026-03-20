@@ -39,7 +39,7 @@ jobs:
       - name: Install
         run: uv sync --inexact --extra dev --extra lsp
       - name: Test
-        run: uv run --extra dev --extra lsp python -m fixit.tests
+        run: uv run --extra dev --extra lsp pytest
       - name: Pyright
         run: uv run --extra dev pyright
   
