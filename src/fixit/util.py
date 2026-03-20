@@ -5,9 +5,10 @@
 
 import os
 import sys
+from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import cast, Generator, Generic, Optional, TypeVar, Union
+from typing import Generic, TypeVar, cast
 
 Yield = TypeVar("Yield")
 Send = TypeVar("Send")
@@ -36,18 +37,16 @@ class capture(Generic[Yield, Send, Return]):
 
     def __init__(self, generator: Generator[Yield, Send, Return]) -> None:
         self.generator = generator
-        self._send: Optional[Send] = None
-        self._result: Union[Return, object] = Sentinel
+        self._send: Send | None = None
+        self._result: Return | object = Sentinel
 
-    def __iter__(self) -> Generator[Yield, Send, Union[Return, object]]:
+    def __iter__(self) -> Generator[Yield, Send, Return | object]:
         try:
             while True:
                 value = self.generator.send(cast(Send, self._send))
-                # type: ignore # pyrefly todo
                 self._send = None
                 answer = yield value
                 if answer is not None:
-                    # type: ignore # pyrefly todo
                     self._send = answer
         except StopIteration as stop:
             self._result = cast(Return, stop.value)

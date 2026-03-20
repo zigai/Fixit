@@ -6,8 +6,8 @@
 import logging
 import sys
 import unittest
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Dict, Optional, Sequence, Set, Type
 
 import click
 
@@ -21,18 +21,14 @@ from .testing import generate_lint_rule_test_cases
 from .util import capture
 
 
-def splash(
-    visited: Set[Path], dirty: Set[Path], autofixes: int = 0, fixed: int = 0
-) -> None:
+def splash(visited: set[Path], dirty: set[Path], autofixes: int = 0, fixed: int = 0) -> None:
     def f(v: int) -> str:
         return "file" if v == 1 else "files"
 
     if dirty:
         reports = [
             click.style(f"{len(visited)} {f(len(visited))} checked"),
-            click.style(
-                f"{len(dirty)} {f(len(dirty))} with errors", fg="yellow", bold=True
-            ),
+            click.style(f"{len(dirty)} {f(len(dirty))} with errors", fg="yellow", bold=True),
         ]
         if autofixes:
             word = "fix" if autofixes == 1 else "fixes"
@@ -50,9 +46,7 @@ def splash(
 @click.group()
 @click.pass_context
 @click.version_option(__version__, "--version", "-V", prog_name="fixit")
-@click.option(
-    "--debug/--quiet", is_flag=True, default=None, help="Increase decrease verbosity"
-)
+@click.option("--debug/--quiet", is_flag=True, default=None, help="Increase decrease verbosity")
 @click.option(
     "--config-file",
     "-c",
@@ -89,11 +83,11 @@ def splash(
 @click.option("--print-metrics", is_flag=True, help="Print metrics of this run")
 def main(
     ctx: click.Context,
-    debug: Optional[bool],
-    config_file: Optional[Path],
+    debug: bool | None,
+    config_file: Path | None,
     tags: str,
     rules: str,
-    output_format: Optional[OutputFormat],
+    output_format: OutputFormat | None,
     output_template: str,
     print_metrics: bool,
 ) -> None:
@@ -107,11 +101,7 @@ def main(
         config_file=config_file,
         tags=Tags.parse(tags),
         rules=sorted(
-            {
-                parse_rule(r, Path.cwd())
-                for r in (rs.strip() for rs in rules.split(","))
-                if r
-            }
+            {parse_rule(r, Path.cwd()) for r in (rs.strip() for rs in rules.split(",")) if r}
         ),
         output_format=output_format,
         output_template=output_template,
@@ -129,7 +119,7 @@ def lint(
     paths: Sequence[Path],
 ) -> None:
     """
-    lint one or more paths and return suggestions
+    Lint one or more paths and return suggestions
 
     pass "- <FILENAME>" for STDIN representing <FILENAME>
     """
@@ -139,8 +129,8 @@ def lint(
         paths = [Path.cwd()]
 
     exit_code = 0
-    visited: Set[Path] = set()
-    dirty: Set[Path] = set()
+    visited: set[Path] = set()
+    dirty: set[Path] = set()
     autofixes = 0
     config = generate_config(options=options)
     for result in fixit_paths(
@@ -183,7 +173,7 @@ def fix(
     paths: Sequence[Path],
 ) -> None:
     """
-    lint and autofix one or more files and return results
+    Lint and autofix one or more files and return results
 
     pass "- <FILENAME>" for STDIN representing <FILENAME>;
     this will ignore "--interactive" and always use "--automatic"
@@ -198,8 +188,8 @@ def fix(
     autofix = not interactive
     exit_code = 0
 
-    visited: Set[Path] = set()
-    dirty: Set[Path] = set()
+    visited: set[Path] = set()
+    dirty: set[Path] = set()
     autofixes = 0
     fixed = 0
 
@@ -231,11 +221,9 @@ def fix(
                 fixed += 1
         if interactive and result.violation and result.violation.autofixable:
             autofixes += 1
-            answer = click.prompt(
-                "Apply autofix?", default="y", type=click.Choice("ynq", False)
-            )
+            answer = click.prompt("Apply autofix?", default="y", type=click.Choice("ynq", False))
             if answer == "y":
-                generator.respond(True)  # noqa: B038
+                generator.respond(True)
                 fixed += 1
             elif answer == "q":
                 break
@@ -258,8 +246,8 @@ def fix(
 def lsp(
     ctx: click.Context,
     stdio: bool,
-    tcp: Optional[int],
-    ws: Optional[int],
+    tcp: int | None,
+    ws: int | None,
     debounce_interval: float,
 ) -> None:
     """
@@ -283,12 +271,10 @@ def lsp(
 @click.argument("rules", nargs=-1, required=True, type=str)
 def test(ctx: click.Context, rules: Sequence[str]) -> None:
     """
-    test lint rules and their VALID/INVALID cases
+    Test lint rules and their VALID/INVALID cases
     """
     qual_rules = [parse_rule(rule, Path.cwd().resolve()) for rule in rules]
-    lint_rules = collect_rules(
-        Config(enable=qual_rules, disable=[], python_version=None)
-    )
+    lint_rules = collect_rules(Config(enable=qual_rules, disable=[], python_version=None))
     test_cases = generate_lint_rule_test_cases(lint_rules)
 
     test_suite = unittest.TestSuite()
@@ -307,7 +293,7 @@ def test(ctx: click.Context, rules: Sequence[str]) -> None:
 @click.argument("paths", nargs=-1, type=click.Path(path_type=Path))
 def upgrade(ctx: click.Context, paths: Sequence[Path]) -> None:
     """
-    upgrade lint rules and apply deprecation fixes
+    Upgrade lint rules and apply deprecation fixes
 
     roughly equivalent to `fixit --rules fixit.upgrade fix --automatic`
     """
@@ -322,7 +308,7 @@ def upgrade(ctx: click.Context, paths: Sequence[Path]) -> None:
 @click.argument("paths", nargs=-1, type=click.Path(exists=True, path_type=Path))
 def debug(ctx: click.Context, paths: Sequence[Path]) -> None:
     """
-    print materialized configuration for paths
+    Print materialized configuration for paths
     """
     options: Options = ctx.obj
 
@@ -332,20 +318,20 @@ def debug(ctx: click.Context, paths: Sequence[Path]) -> None:
     try:
         from rich import print as pprint
     except ImportError:
-        from pprint import pprint  # type: ignore
+        from pprint import pprint
 
     pprint(options)
 
     for path in paths:
         path = path.resolve()
         config = generate_config(path, options=options)
-        disabled: Dict[Type[LintRule], str] = {}
+        disabled: dict[type[LintRule], str] = {}
         enabled = collect_rules(config, debug_reasons=disabled)
 
-        pprint(">>> ", path)
+        print(">>> ", path)
         pprint(config)
-        pprint("enabled:", sorted(str(rule) for rule in enabled))
-        pprint(
+        print("enabled:", sorted(str(rule) for rule in enabled))
+        print(
             "disabled:",
             sorted(f"{rule()} ({reason})" for rule, reason in disabled.items()),
         )
@@ -356,14 +342,14 @@ def debug(ctx: click.Context, paths: Sequence[Path]) -> None:
 @click.argument("path", nargs=1, type=click.Path(exists=True, path_type=Path))
 def validate_config_command(ctx: click.Context, path: Path) -> None:
     """
-    validate the config provided
+    Validate the config provided
     """
     exceptions = validate_config(path)
 
     try:
         from rich import print as pprint
     except ImportError:
-        from pprint import pprint  # type: ignore
+        from pprint import pprint
 
     if exceptions:
         for e in exceptions:

@@ -3,22 +3,20 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Set
 
 import libcst
 from libcst.metadata import QualifiedNameProvider, ScopeProvider
 
 from fixit import Invalid, LintRule, Valid
 
-
 REPLACE_BUILTIN_TYPE_ANNOTATION: str = (
     "You are using builtins.{builtin_type} as a type annotation "
-    + "but the type system doesn't recognize it as a valid type."
-    + " You should use typing.{correct_type} instead."
+     "but the type system doesn't recognize it as a valid type."
+     " You should use typing.{correct_type} instead."
 )
 
-BUILTINS_TO_REPLACE: Set[str] = {"dict", "list", "set", "tuple"}
-QUALIFIED_BUILTINS_TO_REPLACE: Set[str] = {f"builtins.{s}" for s in BUILTINS_TO_REPLACE}
+BUILTINS_TO_REPLACE: set[str] = {"dict", "list", "set", "tuple"}
+QUALIFIED_BUILTINS_TO_REPLACE: set[str] = {f"builtins.{s}" for s in BUILTINS_TO_REPLACE}
 
 
 class UseTypesFromTyping(LintRule):
@@ -141,7 +139,7 @@ class UseTypesFromTyping(LintRule):
 
         if self.annotation_counter > 0 and is_builtin_type:
             correct_type = node.value.title()
-            scope = self.get_metadata(ScopeProvider, node)
+            scope = self.get_metadata(ScopeProvider, node, None)
             replacement = None
             if scope is not None and correct_type in scope:
                 replacement = node.with_changes(value=correct_type)

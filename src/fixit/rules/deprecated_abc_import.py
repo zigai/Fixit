@@ -3,15 +3,12 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import List, Optional, Union
 
 import libcst as cst
 import libcst.matchers as m
-
 from libcst.metadata import ParentNodeProvider
 
 from fixit import Invalid, LintRule, Valid
-
 
 # The ABCs that have been moved to `collections.abc`
 ABCS = frozenset(
@@ -163,19 +160,19 @@ class DeprecatedABCImport(LintRule):
         # If the module needs to updated
         self.update_module: bool = False
         # The original imports
-        self.imports_names: List[str] = []
+        self.imports_names: list[str] = []
 
     def is_except_block(self, node: cst.CSTNode) -> bool:
         """
         Check if the node is in an except block - if it is, we know to ignore it, as it
         may be a fallback import
         """
-        parent = self.get_metadata(ParentNodeProvider, node)
-        while not isinstance(parent, cst.Module):
+        parent = self.get_metadata(ParentNodeProvider, node, None)
+        while parent is not None and not isinstance(parent, cst.Module):
             if isinstance(parent, cst.ExceptHandler):
                 return True
 
-            parent = self.get_metadata(ParentNodeProvider, parent)
+            parent = self.get_metadata(ParentNodeProvider, parent, None)
 
         return False
 
@@ -187,18 +184,10 @@ class DeprecatedABCImport(LintRule):
             return
 
         # Get imports in this statement
-        import_names = (
-            [name.name.value for name in node.names]
-            if type(node.names) is tuple
-            else []
-        )
+        import_names = [name.name.value for name in node.names] if type(node.names) is tuple else []
         # Filter the imports for ABC imports
         import_names_in_abc = [name in ABCS for name in import_names]
-        if (
-            node.module
-            and node.module.value == "collections"
-            and any(import_names_in_abc)
-        ):
+        if node.module and node.module.value == "collections" and any(import_names_in_abc):
             # Replacing the case where there are ABCs mixed with non-ABCs requires
             # splitting a single import statement into two separate imports. This
             # cannot be achieved in this method and is offloaded to leaving the module.
@@ -221,8 +210,8 @@ class DeprecatedABCImport(LintRule):
                 )
 
     def get_import_from(
-        self, node: Union[cst.SimpleStatementLine, cst.BaseCompoundStatement]
-    ) -> Optional[cst.ImportFrom]:
+        self, node: cst.SimpleStatementLine | cst.BaseCompoundStatement
+    ) -> cst.ImportFrom | None:
         """
         Iterate over a Statement Sequence and return a Statement if it is a
         `cst.ImportFrom` statement.
@@ -231,25 +220,23 @@ class DeprecatedABCImport(LintRule):
             node,
             m.ImportFrom(
                 module=m.Name("collections"),
-                names=m.OneOf(
-                    [m.ImportAlias(name=m.Name(n)) for n in self.imports_names]
-                ),
+                names=m.OneOf([m.ImportAlias(name=m.Name(n)) for n in self.imports_names]),
             ),
         )
         return imp[0] if len(imp) > 0 and isinstance(imp[0], cst.ImportFrom) else None
 
-    def leave_Module(self, node: cst.Module) -> None:
+    def leave_Module(self, original_node: cst.Module) -> None:
         """
         While leaving the module, check if we need to split up imports.
         """
         if self.update_module:
             # Filter the ABCs and non-ABCs
-            abcs: List[str] = []
-            non_abcs: List[str] = []
+            abcs: list[str] = []
+            non_abcs: list[str] = []
             for name in self.imports_names:
                 (non_abcs, abcs)[name in ABCS].append(name)
 
-            node_body = list(node.body)
+            node_body = list(original_node.body)
 
             # Iterate over the module to find bad imports
             for idx, statement in enumerate(node_body):
@@ -284,15 +271,14 @@ class DeprecatedABCImport(LintRule):
                                         attr=cst.Name(value="abc"),
                                     ),
                                     names=[
-                                        cst.ImportAlias(name=cst.Name(value=imp))
-                                        for imp in abcs
+                                        cst.ImportAlias(name=cst.Name(value=imp)) for imp in abcs
                                     ],
                                 ),
                             )
                         ),
                     )
 
-            self.report(node, replacement=node.with_changes(body=node_body))
+            self.report(original_node, replacement=original_node.with_changes(body=node_body))
 
     def visit_ImportAlias(self, node: cst.ImportAlias) -> None:
         """
@@ -353,9 +339,7 @@ class DeprecatedABCImport(LintRule):
                                     m.Arg(
                                         value=m.Attribute(
                                             value=m.Name("collections"),
-                                            attr=m.OneOf(
-                                                *[m.Name(abc) for abc in ABCS]
-                                            ),
+                                            attr=m.OneOf(*[m.Name(abc) for abc in ABCS]),
                                         )
                                     ),
                                 )

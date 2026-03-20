@@ -6,10 +6,10 @@
 import logging
 import time
 from collections import defaultdict
+from collections.abc import Collection, Generator, Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import replace
 from pathlib import Path
-from typing import Collection, Generator, Iterator, Mapping, Optional, Set
 
 from libcst import CSTNode, CSTTransformer, Module, parse_module
 from libcst.metadata import FullRepoManager, MetadataWrapper, ProviderT
@@ -32,11 +32,22 @@ def diff_violation(path: Path, module: Module, violation: LintViolation) -> str:
     """
     Generate string diff representation of a violation.
     """
-
     orig = module.code
-    mod = module.deep_replace(  # type:ignore # LibCST#906
-        violation.node, violation.replacement
-    )
+    replacement = violation.replacement
+    assert replacement is not None
+
+    class ReplacementTransformer(CSTTransformer):
+        def on_visit(self, node: CSTNode) -> bool:
+            return node is not violation.node
+
+        def on_leave(
+            self, original_node: CSTNode, updated_node: CSTNode
+        ) -> NodeReplacement[CSTNode]:
+            if original_node is violation.node:
+                return replacement
+            return updated_node
+
+    mod = module.visit(ReplacementTransformer())
     assert isinstance(mod, Module)
     change = mod.code
 
@@ -59,7 +70,7 @@ class LintRunner:
         self,
         rules: Collection[LintRule],
         config: Config,
-        metrics_hook: Optional[MetricsHook] = None,
+        metrics_hook: MetricsHook | None = None,
     ) -> Generator[LintViolation, None, int]:
         """Run multiple `LintRule`s and yield any lint violations.
 
@@ -79,7 +90,7 @@ class LintRunner:
                 self.metrics[f"Duration.{name}"] += duration_us
 
         metadata_cache: Mapping[ProviderT, object] = {}
-        needs_repo_manager: Set[ProviderT] = set()
+        needs_repo_manager: set[ProviderT] = set()
 
         for rule in rules:
             rule._visit_hook = visit_hook
@@ -97,9 +108,7 @@ class LintRunner:
             repo_manager.resolve_cache()
             metadata_cache = repo_manager.get_cache_for_path(config.path.as_posix())
 
-        wrapper = MetadataWrapper(
-            self.module, unsafe_skip_copy=True, cache=metadata_cache
-        )
+        wrapper = MetadataWrapper(self.module, unsafe_skip_copy=True, cache=metadata_cache)
         wrapper.visit_batched(rules)
         count = 0
         for rule in rules:

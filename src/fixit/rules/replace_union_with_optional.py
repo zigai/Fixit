@@ -5,6 +5,7 @@
 
 import libcst as cst
 import libcst.matchers as m
+from libcst.metadata import ScopeProvider
 
 from fixit import Invalid, LintRule, Valid
 
@@ -17,9 +18,9 @@ class ReplaceUnionWithOptional(LintRule):
 
     MESSAGE: str = (
         "`Optional[T]` is preferred over `Union[T, None]` or `Union[None, T]`. "
-        + "Learn more: https://docs.python.org/3/library/typing.html#typing.Optional"
+         "Learn more: https://docs.python.org/3/library/typing.html#typing.Optional"
     )
-    METADATA_DEPENDENCIES = (cst.metadata.ScopeProvider,)
+    METADATA_DEPENDENCIES = (ScopeProvider,)
     VALID = [
         Valid(
             """
@@ -87,7 +88,7 @@ class ReplaceUnionWithOptional(LintRule):
 
     def leave_Annotation(self, original_node: cst.Annotation) -> None:
         if self.contains_union_with_none(original_node):
-            scope = self.get_metadata(cst.metadata.ScopeProvider, original_node, None)
+            scope = self.get_metadata(ScopeProvider, original_node, None)
             nones = 0
             indexes = []
             replacement = None

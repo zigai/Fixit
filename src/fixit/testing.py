@@ -6,11 +6,12 @@
 import re
 import textwrap
 import unittest
+from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Collection, Dict, List, Mapping, Sequence, Type, Union
+from typing import Any
 
-from .engine import diff_violation, LintRunner
+from .engine import LintRunner, diff_violation
 from .ftypes import Config, Invalid, Valid
 from .rule import LintRule
 
@@ -20,9 +21,7 @@ def _dedent(src: str) -> str:
     return textwrap.dedent(src)
 
 
-def get_fixture_path(
-    fixture_top_dir: Path, rule_module: str, rules_package: str
-) -> Path:
+def get_fixture_path(fixture_top_dir: Path, rule_module: str, rules_package: str) -> Path:
     subpackage: str = rule_module.split(f"{rules_package}.", 1)[-1]
     fixture_subdir = subpackage.replace(".", "/")
     return fixture_top_dir / fixture_subdir
@@ -49,8 +48,8 @@ def validate_patch(report: Any, test_case: Invalid) -> None:
     if patched_code != expected_replacement:
         raise AssertionError(
             "Auto-fix did not produce expected result.\n"
-            + f"Expected:\n{expected_replacement}\n"
-            + f"But found:\n{patched_code}"
+             f"Expected:\n{expected_replacement}\n"
+             f"But found:\n{patched_code}"
         )
 
 
@@ -59,7 +58,7 @@ class TestCasePrecursor:
     rule: LintRule
     test_methods: Mapping[
         str,
-        Union[Valid, Invalid],
+        Valid | Invalid,
     ]
     fixture_paths: Mapping[str, Path]
 
@@ -67,12 +66,10 @@ class TestCasePrecursor:
 class LintRuleTestCase(unittest.TestCase):
     def _test_method(
         self,
-        test_case: Union[Valid, Invalid],
+        test_case: Valid | Invalid,
         rule: LintRule,
     ) -> None:
-        path = Path.cwd() / (
-            "valid.py" if isinstance(test_case, Valid) else "invalid.py"
-        )
+        path = Path.cwd() / ("valid.py" if isinstance(test_case, Valid) else "invalid.py")
         config = Config(path=path)
         source_code = _dedent(test_case.code)
         runner = LintRunner(path, source_code.encode())
@@ -91,7 +88,7 @@ class LintRuleTestCase(unittest.TestCase):
             len(reports),
             0,
             'Expected a report for this "invalid" test case but `self.report` was '
-            + "not called:\n"
+             "not called:\n"
             + test_case.code,
         )
 
@@ -111,7 +108,7 @@ class LintRuleTestCase(unittest.TestCase):
             if len(reports) == 1:
                 # make sure we generated a reasonable diff
                 expected_diff = diff_violation(path, runner.module, reports[0])
-                self.assertEqual(expected_diff, report.diff)
+                self.assertEqual(expected_diff, reports[0].diff)
 
 
 def gen_test_methods_for_rule(rule: LintRule) -> TestCasePrecursor:
@@ -123,13 +120,11 @@ def gen_test_methods_for_rule(rule: LintRule) -> TestCasePrecursor:
     """
     valid_tcs = {}
     invalid_tcs = {}
-    fixture_paths: Dict[str, Path] = {}
+    fixture_paths: dict[str, Path] = {}
     for idx, test_case_or_str in enumerate(rule.VALID):
         name = f"test_VALID_{idx}"
         valid_test_case = (
-            Valid(code=test_case_or_str)
-            if isinstance(test_case_or_str, str)
-            else test_case_or_str
+            Valid(code=test_case_or_str) if isinstance(test_case_or_str, str) else test_case_or_str
         )
         valid_tcs[name] = valid_test_case
     for idx, inv_test_case_or_str in enumerate(rule.INVALID):
@@ -164,17 +159,17 @@ def gen_all_test_methods(rules: Collection[LintRule]) -> Sequence[TestCasePrecur
 
 def generate_lint_rule_test_cases(
     rules: Collection[LintRule],
-) -> List[Type[unittest.TestCase]]:
-    test_case_classes: List[Type[unittest.TestCase]] = []
+) -> list[type[unittest.TestCase]]:
+    test_case_classes: list[type[unittest.TestCase]] = []
     for test_case in gen_all_test_methods(rules):
         rule_name = type(test_case.rule).__name__
-        test_methods_to_add: Dict[str, Callable[..., Any]] = {}
+        test_methods_to_add: dict[str, Callable[..., Any]] = {}
 
         for test_method_name, test_method_data in test_case.test_methods.items():
 
             def test_method(
                 self: LintRuleTestCase,
-                data: Union[Valid, Invalid] = test_method_data,
+                data: Valid | Invalid = test_method_data,
                 rule: LintRule = test_case.rule,
             ) -> None:
                 # instantiate a new rule for every test
@@ -191,7 +186,7 @@ def generate_lint_rule_test_cases(
 
 
 def add_lint_rule_tests_to_module(
-    module_attrs: Dict[str, Any], rules: Collection[LintRule]
+    module_attrs: dict[str, Any], rules: Collection[LintRule]
 ) -> None:
     """
     Generates classes inheriting from `unittest.TestCase` from the data available in `rules` and adds these to module_attrs.

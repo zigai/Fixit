@@ -120,14 +120,14 @@ class UseAsyncSleepInAsyncDef(LintRule):
     def visit_FunctionDef(self, node: cst.FunctionDef) -> None:
         self.async_func = node.asynchronous is not None
 
-    def leave_FunctionDef(self, node: cst.FunctionDef) -> None:
+    def leave_FunctionDef(self, original_node: cst.FunctionDef) -> None:
         self.async_func = False
 
     def visit_Call(self, node: cst.Call) -> None:
         if not self.async_func:
             return
 
-        metadata = list(self.get_metadata(QualifiedNameProvider, node))
+        metadata = list(self.get_metadata(QualifiedNameProvider, node, ()))
         if not metadata:
             return
 

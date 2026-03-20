@@ -4,16 +4,17 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Optional
 
 from libcst import (
     Arg,
     BaseExpression,
     Call,
-    matchers as m,
     Module,
     Name,
     parse_expression,
+)
+from libcst import (
+    matchers as m,
 )
 from libcst.metadata import QualifiedNameProvider
 
@@ -74,18 +75,18 @@ class FixitDeprecatedTestCaseKeywords(LintRule):
         ),
     ]
 
-    def visit_Module(self, module: Module) -> None:
-        self.module = module
+    def visit_Module(self, node: Module) -> None:
+        self.module = node
 
     def visit_Call(self, node: Call) -> None:
-        metadata = self.get_metadata(QualifiedNameProvider, node)
+        metadata = self.get_metadata(QualifiedNameProvider, node, ())
         for item in metadata:
             if item.name in ("fixit.InvalidTestCase", "fixit.ValidTestCase"):
                 self.convert_linecol_to_range(node)
 
     def convert_linecol_to_range(self, node: Call) -> None:
-        line: Optional[BaseExpression] = None
-        col: Optional[BaseExpression] = None
+        line: BaseExpression | None = None
+        col: BaseExpression | None = None
         index_to_remove = []
         for ind, arg in enumerate(node.args):
             if not arg.keyword:

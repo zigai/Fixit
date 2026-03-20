@@ -4,12 +4,16 @@
 # LICENSE file in the root directory of this source tree.
 
 import threading
+from collections.abc import Callable, Generator
 from functools import partial
 from pathlib import Path
-from typing import Any, Callable, cast, Dict, Generator, List, Optional, TypeVar
+from typing import Any, TypeVar, cast
 
 import pygls.uris as Uri
 from lsprotocol.types import (
+    TEXT_DOCUMENT_DID_CHANGE,
+    TEXT_DOCUMENT_DID_OPEN,
+    TEXT_DOCUMENT_FORMATTING,
     Diagnostic,
     DiagnosticSeverity,
     DidChangeTextDocumentParams,
@@ -18,9 +22,6 @@ from lsprotocol.types import (
     Position,
     PublishDiagnosticsParams,
     Range,
-    TEXT_DOCUMENT_DID_CHANGE,
-    TEXT_DOCUMENT_DID_OPEN,
-    TEXT_DOCUMENT_FORMATTING,
     TextEdit,
 )
 from pygls.lsp.server import LanguageServer
@@ -44,11 +45,11 @@ class LSP:
         self.fixit_options = fixit_options
         self.lsp_options = lsp_options
 
-        self._config_cache: Dict[Path, Config] = {}
+        self._config_cache: dict[Path, Config] = {}
 
         # separate debounce timer per URI so that linting one URI
         # doesn't cancel linting another
-        self._validate_uri: Dict[str, Callable[[int], None]] = {}
+        self._validate_uri: dict[str, Callable[[int], None]] = {}
 
         self.lsp = LanguageServer("fixit-lsp", __version__)
         # `partial` since `pygls` can register functions but not methods
@@ -66,7 +67,7 @@ class LSP:
 
     def diagnostic_generator(
         self, uri: str, autofix: bool = False
-    ) -> Optional[Generator[Result, bool, Optional[FileContent]]]:
+    ) -> Generator[Result, bool, FileContent | None] | None:
         """
         LSP wrapper (provides document state from `pygls`) for `fixit_bytes`.
         """
@@ -75,7 +76,7 @@ class LSP:
             return None
         path = Path(path_uri)
 
-        doc: TextDocument = self.lsp.workspace.get_text_document(uri)  # type: ignore[no-untyped-call]
+        doc: TextDocument = self.lsp.workspace.get_text_document(uri)
         return fixit_bytes(
             path,
             doc.source.encode(),
@@ -128,7 +129,7 @@ class LSP:
     def on_did_change(self, params: DidChangeTextDocumentParams) -> None:
         self.validate(params.text_document.uri, params.text_document.version)
 
-    def format(self, params: DocumentFormattingParams) -> Optional[List[TextEdit]]:
+    def format(self, params: DocumentFormattingParams) -> list[TextEdit] | None:
         generator = self.diagnostic_generator(params.text_document.uri, autofix=True)
         if generator is None:
             return None
@@ -140,9 +141,7 @@ class LSP:
         if not formatted_content:
             return None
 
-        doc: TextDocument = self.lsp.workspace.get_text_document(
-            params.text_document.uri
-        )
+        doc: TextDocument = self.lsp.workspace.get_text_document(params.text_document.uri)
         entire_range = Range(
             start=Position(line=0, character=0),
             end=Position(line=len(doc.lines) - 1, character=len(doc.lines[-1])),
@@ -169,7 +168,7 @@ class Debouncer:
     def __init__(self, f: Callable[..., Any], interval: float) -> None:
         self.f = f
         self.interval = interval
-        self._timer: Optional[threading.Timer] = None
+        self._timer: threading.Timer | None = None
         self._lock = threading.Lock()
 
     def __call__(self, *args: Any, **kwargs: Any) -> None:

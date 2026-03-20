@@ -6,17 +6,10 @@
 from __future__ import annotations
 
 import functools
+from collections.abc import Collection, Generator, Mapping, Sequence
 from dataclasses import replace
 from typing import (
     ClassVar,
-    Collection,
-    Generator,
-    List,
-    Mapping,
-    Optional,
-    Sequence,
-    Set,
-    Union,
 )
 
 from libcst import (
@@ -66,7 +59,7 @@ class LintRule(BatchableCSTVisitor):
     Required LibCST metadata providers
     """
 
-    TAGS: Set[str] = set()
+    TAGS: set[str] = set()
     "Arbitrary classification tags for use in configuration/selection"
 
     PYTHON_VERSION: str = ""
@@ -76,10 +69,10 @@ class LintRule(BatchableCSTVisitor):
     __ https://peps.python.org/pep-0440/#version-specifiers
     """
 
-    VALID: ClassVar[Sequence[Union[str, Valid]]]
+    VALID: ClassVar[Sequence[str | Valid]]
     "Test cases that should produce no errors/reports"
 
-    INVALID: ClassVar[Sequence[Union[str, Invalid]]]
+    INVALID: ClassVar[Sequence[str | Invalid]]
     "Test cases that are expected to produce errors, with optional replacements"
 
     AUTOFIX = False  # set by __subclass_init__
@@ -96,16 +89,15 @@ class LintRule(BatchableCSTVisitor):
     """
 
     def __init__(self) -> None:
-        self._violations: List[LintViolation] = []
+        self._violations: list[LintViolation] = []
         self.name = self.__class__.__name__
-        if self.name.endswith("Rule"):
-            self.name = self.name[:-4]
+        self.name = self.name.removesuffix("Rule")
 
     def __init_subclass__(cls) -> None:
         if ParentNodeProvider not in cls.METADATA_DEPENDENCIES:
             cls.METADATA_DEPENDENCIES = (*cls.METADATA_DEPENDENCIES, ParentNodeProvider)
 
-        invalid: List[Union[str, Invalid]] = getattr(cls, "INVALID", [])
+        invalid: list[str | Invalid] = getattr(cls, "INVALID", [])
         for case in invalid:
             if isinstance(case, Invalid) and case.expected_replacement:
                 cls.AUTOFIX = True
@@ -114,7 +106,7 @@ class LintRule(BatchableCSTVisitor):
     def __str__(self) -> str:
         return f"{self.__class__.__module__}:{self.__class__.__name__}"
 
-    _visit_hook: Optional[VisitHook] = None
+    _visit_hook: VisitHook | None = None
 
     def node_comments(self, node: CSTNode) -> Generator[str, None, None]:
         """
@@ -125,11 +117,9 @@ class LintRule(BatchableCSTVisitor):
         while not isinstance(node, Module):
             # trailing_whitespace can either be a property of the node itself, or in
             # case of blocks, be part of the block's body element
-            tw: Optional[TrailingWhitespace] = getattr(
-                node, "trailing_whitespace", None
-            )
+            tw: TrailingWhitespace | None = getattr(node, "trailing_whitespace", None)
             if tw is None:
-                body: Optional[BaseSuite] = getattr(node, "body", None)
+                body: BaseSuite | None = getattr(node, "body", None)
                 if isinstance(body, SimpleStatementSuite):
                     tw = body.trailing_whitespace
                 elif isinstance(body, IndentedBlock):
@@ -138,20 +128,20 @@ class LintRule(BatchableCSTVisitor):
             if tw and tw.comment:
                 yield tw.comment.value
 
-            comma: Optional[Comma] = getattr(node, "comma", None)
+            comma: Comma | None = getattr(node, "comma", None)
             if isinstance(comma, Comma):
                 tw = getattr(comma.whitespace_after, "first_line", None)
                 if tw and tw.comment:
                     yield tw.comment.value
 
-            rb: Optional[RightSquareBracket] = getattr(node, "rbracket", None)
+            rb: RightSquareBracket | None = getattr(node, "rbracket", None)
             if rb is not None:
                 tw = getattr(rb.whitespace_before, "first_line", None)
                 if tw and tw.comment:
                     yield tw.comment.value
 
-            el: Optional[Sequence[EmptyLine]] = None
-            lb: Optional[LeftSquareBracket] = getattr(node, "lbracket", None)
+            el: Sequence[EmptyLine] | None = None
+            lb: LeftSquareBracket | None = getattr(node, "lbracket", None)
             if lb is not None:
                 el = getattr(lb.whitespace_after, "empty_lines", None)
                 if el is not None:
@@ -165,7 +155,7 @@ class LintRule(BatchableCSTVisitor):
                     if line.comment:
                         yield line.comment.value
 
-            ll: Optional[Sequence[EmptyLine]] = getattr(node, "leading_lines", None)
+            ll: Sequence[EmptyLine] | None = getattr(node, "leading_lines", None)
             if ll is not None:
                 for line in ll:
                     if line.comment:
@@ -175,7 +165,10 @@ class LintRule(BatchableCSTVisitor):
                     # even if there are no comment lines here at all
                     break
 
-            node = self.get_metadata(ParentNodeProvider, node)
+            parent = self.get_metadata(ParentNodeProvider, node, None)
+            if parent is None:
+                break
+            node = parent
 
         # comments at the start of the file are part of the module header rather than
         # part of the first statement's leading_lines, so we need to look there in case
@@ -185,7 +178,7 @@ class LintRule(BatchableCSTVisitor):
                 if line.comment:
                     yield line.comment.value
         else:
-            parent = self.get_metadata(ParentNodeProvider, node)
+            parent = self.get_metadata(ParentNodeProvider, node, None)
             if isinstance(parent, Module) and parent.body and parent.body[0] == node:
                 for line in parent.header:
                     if line.comment:
@@ -209,8 +202,7 @@ class LintRule(BatchableCSTVisitor):
 
                 # directive: RuleName
                 for name in (n.strip() for n in names.split(",")):
-                    if name.endswith("Rule"):
-                        name = name[:-4]
+                    name = name.removesuffix("Rule")
                     if name in rule_names:
                         return True
 
@@ -219,10 +211,10 @@ class LintRule(BatchableCSTVisitor):
     def report(
         self,
         node: CSTNode,
-        message: Optional[str] = None,
+        message: str | None = None,
         *,
-        position: Optional[Union[CodePosition, CodeRange]] = None,
-        replacement: Optional[NodeReplacement[CSTNode]] = None,
+        position: CodePosition | CodeRange | None = None,
+        replacement: NodeReplacement[CSTNode] | None = None,
     ) -> None:
         """
         Report a lint rule violation.
@@ -249,7 +241,9 @@ class LintRule(BatchableCSTVisitor):
                 raise ValueError(f"No message provided in {self.name}")
 
         if position is None:
-            position = self.get_metadata(PositionProvider, node)
+            position = self.get_metadata(PositionProvider, node, None)
+            if position is None:
+                raise ValueError(f"Unable to determine violation position for {self.name}")
         elif isinstance(position, CodePosition):
             end = replace(position, line=position.line + 1, column=0)
             position = CodeRange(start=position, end=end)

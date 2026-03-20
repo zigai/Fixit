@@ -3,22 +3,21 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Sequence
+from collections.abc import Sequence
 
 import libcst as cst
 import libcst.matchers as m
 
 from fixit import Invalid, LintRule, Valid
 
-
 UNNECESSARY_LITERAL: str = (
     "It's unnecessary to use a list or tuple within a call to {func} since"
-    + " there is literal syntax for this type"
+     " there is literal syntax for this type"
 )
 UNNCESSARY_CALL: str = (
     "It's slower to call {func}() than using the empty literal, because"
-    + " the name {func} must be looked up in the global scope in case it has"
-    + " been rebound."
+     " the name {func} must be looked up in the global scope in case it has"
+     " been rebound."
 )
 
 
@@ -68,6 +67,15 @@ class RewriteToLiteral(LintRule):
         Invalid("dict()", expected_replacement="{}"),
     ]
 
+    def _dict_element_from_pair(self, element: cst.BaseElement) -> cst.DictElement:
+        pair = cst.ensure_type(element, cst.Element)
+        pair_value = cst.ensure_type(
+            pair.value, cst.Tuple if isinstance(pair.value, cst.Tuple) else cst.List
+        )
+        key = cst.ensure_type(pair_value.elements[0], cst.Element).value
+        value = cst.ensure_type(pair_value.elements[1], cst.Element).value
+        return cst.DictElement(key, value)
+
     def visit_Call(self, node: cst.Call) -> None:
         if m.matches(
             node,
@@ -95,9 +103,7 @@ class RewriteToLiteral(LintRule):
                 message_formatter = UNNCESSARY_CALL
             else:
                 arg = exp.args[0].value
-                if isinstance(arg, cst.List):
-                    elements = arg.elements
-                elif isinstance(arg, cst.Tuple):
+                if isinstance(arg, cst.List) or isinstance(arg, cst.Tuple):
                     elements = arg.elements
                 else:
                     raise ValueError(f"Unexpected {type(arg)}")
@@ -115,9 +121,7 @@ class RewriteToLiteral(LintRule):
                     self.report(
                         node,
                         UNNECESSARY_LITERAL.format(func=call_name),
-                        replacement=node.deep_replace(
-                            node, cst.Call(func=cst.Name("set"))
-                        ),
+                        replacement=node.deep_replace(node, cst.Call(func=cst.Name("set"))),
                     )
                     return
                 new_node = cst.Set(elements=elements)
@@ -126,23 +130,7 @@ class RewriteToLiteral(LintRule):
                 m.Tuple(elements=[pairs_matcher]) | m.List(elements=[pairs_matcher]),
             ):
                 new_node = cst.Dict(
-                    elements=[
-                        (
-                            lambda val: cst.DictElement(
-                                val.elements[0].value, val.elements[1].value  # type: ignore
-                            )
-                        )(
-                            cst.ensure_type(
-                                ele.value,
-                                (
-                                    cst.Tuple
-                                    if isinstance(ele.value, cst.Tuple)
-                                    else cst.List
-                                ),
-                            )
-                        )
-                        for ele in elements
-                    ]
+                    elements=[self._dict_element_from_pair(element) for element in elements]
                 )
             else:
                 # Unrecoginized form

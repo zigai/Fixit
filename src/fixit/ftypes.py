@@ -5,21 +5,13 @@
 
 import platform
 import re
+from collections.abc import Callable, Collection, Container, Iterable, Sequence
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import (
     Any,
-    Callable,
-    Collection,
-    Container,
     ContextManager,
-    Dict,
-    Iterable,
-    List,
-    Optional,
-    Sequence,
-    Tuple,
     TypedDict,
     TypeVar,
     Union,
@@ -27,26 +19,24 @@ from typing import (
 
 from libcst import CSTNode, CSTNodeT, FlattenSentinel, RemovalSentinel
 from libcst._add_slots import add_slots
-from libcst.metadata import CodePosition as CodePosition, CodeRange as CodeRange
+from libcst.metadata import CodePosition as CodePosition
+from libcst.metadata import CodeRange as CodeRange
 from packaging.version import Version
 
-__all__ = ("Version",)
+__all__ = ("CodePosition", "CodeRange", "Version")
 
 T = TypeVar("T")
 
 STDIN = Path("-")
 
-CodeRange
-CodePosition
-
 FileContent = bytes
 RuleOptionTypes = (str, int, float)
-RuleOptions = Dict[str, Union[str, int, float]]
-RuleOptionsTable = Dict[str, RuleOptions]
+RuleOptions = dict[str, str | int | float]
+RuleOptionsTable = dict[str, RuleOptions]
 
 NodeReplacement = Union[CSTNodeT, FlattenSentinel[CSTNodeT], RemovalSentinel]
 
-Metrics = Dict[str, Any]
+Metrics = dict[str, Any]
 MetricsHook = Callable[[Metrics], None]
 
 VisitorMethod = Callable[[CSTNode], None]
@@ -63,9 +53,9 @@ class OutputFormat(str, Enum):
 @dataclass(frozen=True)
 class Invalid:
     code: str
-    range: Optional[CodeRange] = None
-    expected_message: Optional[str] = None
-    expected_replacement: Optional[str] = None
+    range: CodeRange | None = None
+    expected_message: str | None = None
+    expected_replacement: str | None = None
 
 
 @dataclass(frozen=True)
@@ -105,8 +95,8 @@ QualifiedRuleRegex = re.compile(
 
 class QualifiedRuleRegexResult(TypedDict):
     module: str
-    name: Optional[str]
-    local: Optional[str]
+    name: str | None
+    local: str | None
 
 
 def is_sequence(value: Any) -> bool:
@@ -120,9 +110,9 @@ def is_collection(value: Any) -> bool:
 @dataclass(frozen=True)
 class QualifiedRule:
     module: str
-    name: Optional[str] = None
-    local: Optional[str] = None
-    root: Optional[Path] = field(default=None, hash=False, compare=False)
+    name: str | None = None
+    local: str | None = None
+    root: Path | None = field(default=None, hash=False, compare=False)
 
     def __str__(self) -> str:
         return self.module + (f":{self.name}" if self.name else "")
@@ -135,11 +125,11 @@ class QualifiedRule:
 
 @dataclass(frozen=True)
 class Tags(Container[str]):
-    include: Tuple[str, ...] = ()
-    exclude: Tuple[str, ...] = ()
+    include: tuple[str, ...] = ()
+    exclude: tuple[str, ...] = ()
 
     @staticmethod
-    def parse(value: Optional[str]) -> "Tags":
+    def parse(value: str | None) -> "Tags":
         if not value:
             return Tags()
 
@@ -185,11 +175,11 @@ class Options:
     Command-line options to affect runtime behavior
     """
 
-    debug: Optional[bool] = None
-    config_file: Optional[Path] = None
-    tags: Optional[Tags] = None
+    debug: bool | None = None
+    config_file: Path | None = None
+    tags: Tags | None = None
     rules: Sequence[QualifiedRule] = ()
-    output_format: Optional[OutputFormat] = None
+    output_format: OutputFormat | None = None
     output_template: str = ""
     print_metrics: bool = False
 
@@ -200,8 +190,8 @@ class LSPOptions:
     Command-line options to affect LSP runtime behavior
     """
 
-    tcp: Optional[int]
-    ws: Optional[int]
+    tcp: int | None
+    ws: int | None
     stdio: bool = True
     debounce_interval: float = 0.5
 
@@ -216,23 +206,21 @@ class Config:
     root: Path = field(default_factory=Path.cwd)
 
     # feature flags
-    enable_root_import: Union[bool, Path] = False
+    enable_root_import: bool | Path = False
 
     # rule selection
-    enable: List[QualifiedRule] = field(
-        default_factory=lambda: [QualifiedRule("fixit.rules")]
-    )
-    disable: List[QualifiedRule] = field(default_factory=list)
+    enable: list[QualifiedRule] = field(default_factory=lambda: [QualifiedRule("fixit.rules")])
+    disable: list[QualifiedRule] = field(default_factory=list)
     options: RuleOptionsTable = field(default_factory=dict)
 
     # filtering criteria
-    python_version: Optional[Version] = field(
+    python_version: Version | None = field(
         default_factory=lambda: Version(platform.python_version())
     )
     tags: Tags = field(default_factory=Tags)
 
     # post-run processing
-    formatter: Optional[str] = None
+    formatter: str | None = None
 
     # output formatting options
     output_format: OutputFormat = OutputFormat.fixit
@@ -246,7 +234,7 @@ class Config:
 @dataclass
 class RawConfig:
     path: Path
-    data: Dict[str, Any]
+    data: dict[str, Any]
 
     def __post_init__(self) -> None:
         self.path = self.path.resolve()
@@ -263,7 +251,7 @@ class LintViolation:
     range: CodeRange
     message: str
     node: CSTNode
-    replacement: Optional[NodeReplacement[CSTNode]]
+    replacement: NodeReplacement[CSTNode] | None
     diff: str = ""
 
     @property
@@ -281,5 +269,5 @@ class Result:
     """
 
     path: Path
-    violation: Optional[LintViolation]
-    error: Optional[Tuple[Exception, str]] = None
+    violation: LintViolation | None
+    error: tuple[Exception, str] | None = None
