@@ -23,6 +23,8 @@
 
 import re
 
+from sphinx.domains import python
+
 # modified from sphinx/domains/python.py
 py_sig_re = re.compile(
     r"""^ ([\w.]*\.)?            # class name(s)
@@ -34,14 +36,13 @@ py_sig_re = re.compile(
     re.VERBOSE,
 )
 
-from sphinx.domains import python
-
 python.py_sig_re = py_sig_re
 
 # -- Project information -----------------------------------------------------
 
 project = "Fixit"
-copyright = " Copyright © Meta Platforms, Inc. and affiliates"
+project_copyright = " Copyright © Meta Platforms, Inc. and affiliates"
+globals()["copyright"] = project_copyright
 author = ""
 # -- General configuration ---------------------------------------------------
 

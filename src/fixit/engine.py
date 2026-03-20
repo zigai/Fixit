@@ -29,9 +29,7 @@ LOG = logging.getLogger(__name__)
 
 
 def diff_violation(path: Path, module: Module, violation: LintViolation) -> str:
-    """
-    Generate string diff representation of a violation.
-    """
+    """Generate string diff representation of a violation."""
     orig = module.code
     replacement = violation.replacement
     assert replacement is not None
@@ -86,7 +84,7 @@ class LintRunner:
                 yield
             finally:
                 duration_us = int(1000 * 1000 * (time.perf_counter() - start))
-                LOG.debug(f"PERF: {name} took {duration_us} µs")
+                LOG.debug("PERF: %s took %s µs", name, duration_us)
                 self.metrics[f"Duration.{name}"] += duration_us
 
         metadata_cache: Mapping[ProviderT, object] = {}
@@ -132,9 +130,7 @@ class LintRunner:
         return count
 
     def apply_replacements(self, violations: Collection[LintViolation]) -> Module:
-        """
-        Apply any autofixes to the module, and return the resulting source code.
-        """
+        """Apply any autofixes to the module, and return the resulting source code."""
         replacements = {v.node: v.replacement for v in violations if v.replacement}
 
         class ReplacementTransformer(CSTTransformer):

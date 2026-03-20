@@ -3,6 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
+import re
 from dataclasses import asdict
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -10,21 +11,14 @@ from textwrap import dedent
 from typing import List, Sequence, Tuple, Type
 from unittest import TestCase
 
+import pytest
 from click.testing import CliRunner
 
-from .. import config
-from ..cli import main
-from ..ftypes import (
-    Config,
-    Options,
-    OutputFormat,
-    QualifiedRule,
-    RawConfig,
-    Tags,
-    Version,
-)
-from ..rule import LintRule
-from ..util import chdir
+from fixit import config
+from fixit.cli import main
+from fixit.ftypes import Config, Options, OutputFormat, QualifiedRule, RawConfig, Tags, Version
+from fixit.rule import LintRule
+from fixit.util import chdir
 
 
 class ConfigTest(TestCase):
@@ -147,7 +141,7 @@ class ConfigTest(TestCase):
         ):
             with self.subTest(name):
                 actual = config.locate_configs(path, root)
-                self.assertListEqual(expected, actual)
+                assert expected == actual
 
     def test_read_configs(self) -> None:
         # in-out priority order
@@ -252,7 +246,7 @@ class ConfigTest(TestCase):
         ):
             with self.subTest(name):
                 actual = config.read_configs(paths)
-                self.assertListEqual(expected, actual)
+                assert expected == actual
 
     def test_merge_configs(self) -> None:
         root = self.tdp
@@ -339,7 +333,7 @@ class ConfigTest(TestCase):
         for name, raw_configs, expected in params:
             with self.subTest(name):
                 actual = config.merge_configs(target, raw_configs)
-                self.assertEqual(expected, actual)
+                assert expected == actual
 
     def test_generate_config(self) -> None:
         for name, path, root, options, expected in (
@@ -446,7 +440,7 @@ class ConfigTest(TestCase):
         ):
             with self.subTest(name):
                 actual = config.generate_config(path, root, options=options)
-                self.assertDictEqual(asdict(expected), asdict(actual))
+                assert asdict(expected) == asdict(actual)
 
     def test_invalid_config(self) -> None:
         with self.subTest("inner enable-root-import"):
@@ -455,7 +449,7 @@ class ConfigTest(TestCase):
                 "[tool.fixit]\nenable-root-import = true\n"
             )
 
-            with self.assertRaisesRegex(config.ConfigError, "enable-root-import"):
+            with pytest.raises(config.ConfigError, match="enable-root-import"):
                 config.generate_config(self.tdp / "outer" / "foo.py")
 
         with self.subTest("inner output-format"):
@@ -464,7 +458,7 @@ class ConfigTest(TestCase):
                 "[tool.fixit]\noutput-format = 'this is some weird format'\n"
             )
 
-            with self.assertRaisesRegex(config.ConfigError, "output-format"):
+            with pytest.raises(config.ConfigError, match="output-format"):
                 config.generate_config(self.tdp / "outer" / "foo.py")
 
     def test_collect_rules(self) -> None:
@@ -486,8 +480,8 @@ class ConfigTest(TestCase):
                     python_version=None,
                 )
             )
-            self.assertIn(UseClsInClassmethod, rules)
-            self.assertIn(UseTypesFromTyping, rules)
+            assert UseClsInClassmethod in rules
+            assert UseTypesFromTyping in rules
 
         with self.subTest("opt-out"):
             rules = collect_types(
@@ -496,8 +490,8 @@ class ConfigTest(TestCase):
                     python_version=None,
                 )
             )
-            self.assertNotIn(UseClsInClassmethod, rules)
-            self.assertIn(UseTypesFromTyping, rules)
+            assert UseClsInClassmethod not in rules
+            assert UseTypesFromTyping in rules
 
         with self.subTest("opt-in"):
             rules = collect_types(
@@ -506,7 +500,7 @@ class ConfigTest(TestCase):
                     python_version=None,
                 )
             )
-            self.assertListEqual([UseClsInClassmethod], rules)
+            assert [UseClsInClassmethod] == rules
 
         with self.subTest("disable builtins"):
             rules = collect_types(
@@ -515,7 +509,7 @@ class ConfigTest(TestCase):
                     python_version=None,
                 )
             )
-            self.assertListEqual([], rules)
+            assert [] == rules
 
         with self.subTest("override broad opt-out"):
             rules = collect_types(
@@ -524,7 +518,7 @@ class ConfigTest(TestCase):
                     enable=[QualifiedRule("fixit.rules", "UseClsInClassmethod")],
                 )
             )
-            self.assertListEqual([UseClsInClassmethod], rules)
+            assert [UseClsInClassmethod] == rules
 
         with self.subTest("version match"):
             rules = collect_types(
@@ -532,7 +526,7 @@ class ConfigTest(TestCase):
                     python_version=Version("3.7.10"),
                 )
             )
-            self.assertIn(UseTypesFromTyping, rules)
+            assert UseTypesFromTyping in rules
 
         with self.subTest("version match alpha"):
             rules = collect_types(
@@ -540,7 +534,7 @@ class ConfigTest(TestCase):
                     python_version=Version("3.7.10a3"),
                 )
             )
-            self.assertIn(UseTypesFromTyping, rules)
+            assert UseTypesFromTyping in rules
 
         with self.subTest("version mismatch"):
             rules = collect_types(
@@ -548,7 +542,7 @@ class ConfigTest(TestCase):
                     python_version=Version("3.10.5"),
                 )
             )
-            self.assertNotIn(UseTypesFromTyping, rules)
+            assert UseTypesFromTyping not in rules
 
         with self.subTest("version mismatch alpha"):
             rules = collect_types(
@@ -556,7 +550,7 @@ class ConfigTest(TestCase):
                     python_version=Version("3.10.5a4"),
                 )
             )
-            self.assertNotIn(UseTypesFromTyping, rules)
+            assert UseTypesFromTyping not in rules
 
         with self.subTest("tag select"):
             rules = collect_types(
@@ -565,13 +559,10 @@ class ConfigTest(TestCase):
                     tags=Tags.parse("typing"),
                 )
             )
-            self.assertListEqual(
-                [
-                    NoNamedTuple,
-                    UseTypesFromTyping,
-                ],
-                rules,
-            )
+            assert [
+                NoNamedTuple,
+                UseTypesFromTyping,
+            ] == rules
 
         with self.subTest("tag filter"):
             rules = collect_types(
@@ -580,7 +571,7 @@ class ConfigTest(TestCase):
                     tags=Tags.parse("^exceptions"),
                 )
             )
-            self.assertNotIn(AvoidOrInExcept, rules)
+            assert AvoidOrInExcept not in rules
 
         with self.subTest("tag select and filter"):
             rules = collect_types(
@@ -589,7 +580,7 @@ class ConfigTest(TestCase):
                     tags=Tags.parse("typing,^tuples"),
                 )
             )
-            self.assertListEqual([UseTypesFromTyping], rules)
+            assert [UseTypesFromTyping] == rules
 
     def test_format_output(self) -> None:
         with chdir(self.tdp):
@@ -610,11 +601,11 @@ class ConfigTest(TestCase):
 
             with self.subTest("linting vscode"):
                 result = runner.invoke(main, ["lint", filepath.as_posix()], catch_exceptions=False)
-                self.assertRegex(result.output, output_format_regex)
+                assert re.search(output_format_regex, result.output)
 
             with self.subTest("fixing vscode"):
                 result = runner.invoke(main, ["fix", filepath.as_posix()], catch_exceptions=False)
-                self.assertRegex(result.output, output_format_regex)
+                assert re.search(output_format_regex, result.output)
 
             custom_output_format_regex = r".*f_string\.py|\d+|\d+ UseFstring: .+"
             custom_output_format = "{path}|{start_line}|{start_col} {rule_name}: {message}"
@@ -630,11 +621,11 @@ class ConfigTest(TestCase):
 
             with self.subTest("linting custom"):
                 result = runner.invoke(main, ["lint", filepath.as_posix()], catch_exceptions=False)
-                self.assertRegex(result.output, custom_output_format_regex)
+                assert re.search(custom_output_format_regex, result.output)
 
             with self.subTest("fixing custom"):
                 result = runner.invoke(main, ["fix", filepath.as_posix()], catch_exceptions=False)
-                self.assertRegex(result.output, custom_output_format_regex)
+                assert re.search(custom_output_format_regex, result.output)
 
             with self.subTest("override output-format"):
                 result = runner.invoke(
@@ -642,7 +633,7 @@ class ConfigTest(TestCase):
                     ["--output-format", "vscode", "lint", filepath.as_posix()],
                     catch_exceptions=True,
                 )
-                self.assertRegex(result.output, output_format_regex)
+                assert re.search(output_format_regex, result.output)
 
             with self.subTest("override output-template"):
                 result = runner.invoke(
@@ -655,7 +646,7 @@ class ConfigTest(TestCase):
                     ],
                     catch_exceptions=True,
                 )
-                self.assertRegex(result.output, r"file .*f_string\.py line \d+ rule UseFstring")
+                assert re.search(r"file .*f_string\.py line \d+ rule UseFstring", result.output)
 
     def test_validate_config(self) -> None:
         with self.subTest("validate-config valid"), TemporaryDirectory() as td:
@@ -671,85 +662,76 @@ class ConfigTest(TestCase):
 
             results = config.validate_config(path)
 
-            self.assertEqual(results, [])
+            assert results == []
 
     def test_validate_config_with_override(self) -> None:
-        with self.subTest("validate-config valid with overrides"):
-            with TemporaryDirectory() as td:
-                tdp = Path(td).resolve()
-                path = tdp / ".fixit.toml"
-                (tdp / "rule/ruledir").mkdir(parents=True, exist_ok=True)
+        with self.subTest("validate-config valid with overrides"), TemporaryDirectory() as td:
+            tdp = Path(td).resolve()
+            path = tdp / ".fixit.toml"
+            (tdp / "rule/ruledir").mkdir(parents=True, exist_ok=True)
 
-                (tdp / "rule/rule.py").write_text("# Rule")
-                (tdp / "rule/ruledir/rule.py").write_text("# Rule")
-                path.write_text(
-                    """
-                    [tool.fixit]
-                    disable = ["fixit.rules"]
-                    root = true
+            (tdp / "rule/rule.py").write_text("# Rule")
+            (tdp / "rule/ruledir/rule.py").write_text("# Rule")
+            path.write_text(
+                """
+                [tool.fixit]
+                disable = ["fixit.rules"]
+                root = true
 
-                    [[tool.fixit.overrides]]
-                    path = "SUPER_REAL_PATH"
-                    enable = [".rule.rule"]
+                [[tool.fixit.overrides]]
+                path = "SUPER_REAL_PATH"
+                enable = [".rule.rule"]
 
-                    [[tool.fixit.overrides]]
-                    path = "SUPER_REAL_PATH/BUT_ACTUALLY_REAL"
-                    enable = [".rule.ruledir.rule"]
-                    """
-                )
+                [[tool.fixit.overrides]]
+                path = "SUPER_REAL_PATH/BUT_ACTUALLY_REAL"
+                enable = [".rule.ruledir.rule"]
+                """
+            )
 
-                results = config.validate_config(path)
+            results = config.validate_config(path)
 
-                self.assertEqual(results, [])
+            assert results == []
 
-        with self.subTest("validate-config invalid config"):
-            with TemporaryDirectory() as td:
-                tdp = Path(td).resolve()
-                path = tdp / ".fixit.toml"
-                path.write_text(
-                    """
-                    [tool.fixit]
-                    enable = ["fixit/rules:DeprecatedABCImport"]
-                    disable = ["fixit.rules"]
-                    root = true
-                    """
-                )
+        with self.subTest("validate-config invalid config"), TemporaryDirectory() as td:
+            tdp = Path(td).resolve()
+            path = tdp / ".fixit.toml"
+            path.write_text(
+                """
+                [tool.fixit]
+                enable = ["fixit/rules:DeprecatedABCImport"]
+                disable = ["fixit.rules"]
+                root = true
+                """
+            )
 
-                results = config.validate_config(path)
+            results = config.validate_config(path)
 
-                self.assertEqual(
-                    results,
-                    [
-                        "Failed to parse rule `fixit/rules:DeprecatedABCImport` for global enable: ConfigError: invalid rule name 'fixit/rules:DeprecatedABCImport'"
-                    ],
-                )
+            assert results == [
+                "Failed to parse rule `fixit/rules:DeprecatedABCImport` for global enable: ConfigError: invalid rule name 'fixit/rules:DeprecatedABCImport'"
+            ]
 
-        with self.subTest("validate-config multiple errors"):
-            with TemporaryDirectory() as td:
-                tdp = Path(td).resolve()
-                config_path = tdp / ".fixit.toml"
-                config_path.write_text(
-                    """
-                    [tool.fixit]
-                    enable = ["fixit/rules:DeprecatedABCImport"]
-                    disable = ["fixit.rules"]
-                    root = true
+        with self.subTest("validate-config multiple errors"), TemporaryDirectory() as td:
+            tdp = Path(td).resolve()
+            config_path = tdp / ".fixit.toml"
+            config_path.write_text(
+                """
+                [tool.fixit]
+                enable = ["fixit/rules:DeprecatedABCImport"]
+                disable = ["fixit.rules"]
+                root = true
 
-                    [[tool.fixit.overrides]]
-                    path = "SUPER_REAL_PATH"
-                    enable = ["fixit.rules:DeprecatedABCImport_SUPER_REAL"]
-                    """
-                )
+                [[tool.fixit.overrides]]
+                path = "SUPER_REAL_PATH"
+                enable = ["fixit.rules:DeprecatedABCImport_SUPER_REAL"]
+                """
+            )
 
-                path = tdp / "file.py"
-                path.write_text("error")
+            path = tdp / "file.py"
+            path.write_text("error")
 
-                results = config.validate_config(config_path)
+            results = config.validate_config(config_path)
 
-                self.assertEqual(
-                    results,
-                    [
-                        "Failed to parse rule `fixit/rules:DeprecatedABCImport` for global enable: ConfigError: invalid rule name 'fixit/rules:DeprecatedABCImport'",
-                        "Failed to import rule `fixit.rules:DeprecatedABCImport_SUPER_REAL` for override enable: `SUPER_REAL_PATH`: CollectionError: could not find rule fixit.rules:DeprecatedABCImport_SUPER_REAL",
-                    ],
-                )
+            assert results == [
+                "Failed to parse rule `fixit/rules:DeprecatedABCImport` for global enable: ConfigError: invalid rule name 'fixit/rules:DeprecatedABCImport'",
+                "Failed to import rule `fixit.rules:DeprecatedABCImport_SUPER_REAL` for override enable: `SUPER_REAL_PATH`: CollectionError: could not find rule fixit.rules:DeprecatedABCImport_SUPER_REAL",
+            ]

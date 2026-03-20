@@ -10,9 +10,7 @@ from fixit import CodePosition, CodeRange, Invalid, LintRule, Valid
 
 
 class NoRedundantFString(LintRule):
-    """
-    Remove redundant f-string without placeholders.
-    """
+    """Remove redundant f-string without placeholders."""
 
     MESSAGE: str = "f-string doesn't have placeholders, remove redundant f-string."
 

@@ -3,10 +3,11 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
+import re
 from typing import Any, Optional, Set, cast
 from unittest import TestCase
 
-from .. import ftypes
+from fixit import ftypes
 
 
 class TypesTest(TestCase):
@@ -22,10 +23,10 @@ class TypesTest(TestCase):
         ):
             with self.subTest("match " + value):
                 match = ftypes.LintIgnoreRegex.match(value)
-                self.assertIsNotNone(match, "value did not match lint-ignore regex")
+                assert match is not None, "value did not match lint-ignore regex"
                 if match:
                     _style, names = match.groups()
-                    self.assertEqual(expected_names, names, "regex captured unexpected names")
+                    assert expected_names == names, "regex captured unexpected names"
 
         for value in (
             "# something else",
@@ -34,10 +35,8 @@ class TypesTest(TestCase):
             "# fake lint-fixme: something here",
         ):
             with self.subTest("no match " + value):
-                self.assertNotRegex(
-                    value,
-                    ftypes.LintIgnoreRegex,
-                    "value unexpectedly matches lint-ignore regex",
+                assert not re.search(ftypes.LintIgnoreRegex, value), (
+                    "value unexpectedly matches lint-ignore regex"
                 )
 
     def test_qualified_rule(self) -> None:
@@ -60,30 +59,27 @@ class TypesTest(TestCase):
                 if expected is not None:
                     if match is None:
                         self.fail(f"{value!r} should match QualifiedRule")
-                    self.assertEqual(expected, match.groupdict())
+                    assert expected == match.groupdict()
 
                     kwargs = cast(ftypes.QualifiedRuleRegexResult, match.groupdict())
                     rule = ftypes.QualifiedRule(**kwargs)
-                    self.assertEqual(expected["local"], rule.local)
-                    self.assertEqual(expected["module"], rule.module)
-                    self.assertEqual(expected["name"], rule.name)
+                    assert expected["local"] == rule.local
+                    assert expected["module"] == rule.module
+                    assert expected["name"] == rule.name
 
                     valid.add(rule)
 
                 else:
-                    self.assertIsNone(match, f"{value!r} should not match QualifiedRule")
+                    assert match is None, f"{value!r} should not match QualifiedRule"
 
-        self.assertSetEqual(
-            {
-                ftypes.QualifiedRule("foo"),
-                ftypes.QualifiedRule("foo.bar"),
-                ftypes.QualifiedRule("foo.bar", "Baz"),
-                ftypes.QualifiedRule(".foo", local="."),
-                ftypes.QualifiedRule(".foo.bar", local="."),
-                ftypes.QualifiedRule(".foo.bar", "Baz", local="."),
-            },
-            valid,
-        )
+        assert {
+            ftypes.QualifiedRule("foo"),
+            ftypes.QualifiedRule("foo.bar"),
+            ftypes.QualifiedRule("foo.bar", "Baz"),
+            ftypes.QualifiedRule(".foo", local="."),
+            ftypes.QualifiedRule(".foo.bar", local="."),
+            ftypes.QualifiedRule(".foo.bar", "Baz", local="."),
+        } == valid
 
     def test_tags_parser(self) -> None:
         Tags = ftypes.Tags
@@ -98,7 +94,7 @@ class TypesTest(TestCase):
         ):
             with self.subTest(value):
                 result = Tags.parse(value)
-                self.assertEqual(expected, result)
+                assert expected == result
 
     def test_tags_bool(self) -> None:
         Tags = ftypes.Tags
@@ -110,13 +106,13 @@ class TypesTest(TestCase):
             "hello,world",
             "hello,^world",
         ):
-            self.assertTrue(Tags.parse(tags))
+            assert Tags.parse(tags)
 
         for tags in (
             None,
             "",
         ):
-            self.assertFalse(Tags.parse(tags))
+            assert not Tags.parse(tags)
 
     def test_tags_contains(self) -> None:
         Tags = ftypes.Tags
@@ -138,7 +134,7 @@ class TypesTest(TestCase):
             (["hello", "world"], "hello, world, !blue"),
         ):
             with self.subTest(f"{value!r} in {tags!r}"):
-                self.assertIn(value, Tags.parse(tags))
+                assert value in Tags.parse(tags)
 
         for value, tags in (
             (None, ""),
@@ -155,4 +151,4 @@ class TypesTest(TestCase):
             (["hello", "world"], "hello, !world, blue"),
         ):
             with self.subTest(f"{value!r} not in {tags!r}"):
-                self.assertNotIn(value, Tags.parse(tags))
+                assert value not in Tags.parse(tags)

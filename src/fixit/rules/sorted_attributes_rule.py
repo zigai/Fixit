@@ -3,14 +3,12 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Union
-
 import libcst as cst
 import libcst.matchers as m
 
 from fixit import Invalid, LintRule, Valid
 
-LineType = Union[cst.BaseSmallStatement, cst.BaseStatement]
+LineType = cst.BaseSmallStatement | cst.BaseStatement
 
 
 class SortedAttributes(LintRule):
@@ -88,7 +86,10 @@ class SortedAttributes(LintRule):
             (post_assign_lines.append(line) if found_any_assign else pre_assign_lines.append(line))
 
         for line in node.body.body:
-            if m.matches(line, m.SimpleStatementLine(body=[m.Assign(targets=[m.AssignTarget()])])):
+            if m.matches(
+                line,
+                m.SimpleStatementLine(body=[m.Assign(targets=[m.AssignTarget(target=m.Name())])]),
+            ):
                 found_any_assign = True
                 assign_lines.append(line)
             else:
@@ -97,7 +98,7 @@ class SortedAttributes(LintRule):
 
         sorted_assign_lines = sorted(
             assign_lines,
-            key=lambda line: line.body[0].targets[0].target.value,  # type: ignore
+            key=self._get_assign_name,
         )
         if sorted_assign_lines == assign_lines:
             return
@@ -109,3 +110,9 @@ class SortedAttributes(LintRule):
                 )
             ),
         )
+
+    def _get_assign_name(self, line: LineType) -> str:
+        statement_line = cst.ensure_type(line, cst.SimpleStatementLine)
+        assign = cst.ensure_type(statement_line.body[0], cst.Assign)
+        target = cst.ensure_type(assign.targets[0].target, cst.Name)
+        return target.value

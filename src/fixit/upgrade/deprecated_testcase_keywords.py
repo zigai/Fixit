@@ -104,7 +104,7 @@ class FixitDeprecatedTestCaseKeywords(LintRule):
                 index_to_remove.append(ind)
 
         args = list(node.args[:])
-        for ind in reversed(sorted(index_to_remove)):
+        for ind in sorted(index_to_remove, reverse=True):
             args.pop(ind)
 
         if line:

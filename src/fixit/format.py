@@ -19,9 +19,7 @@ FORMAT_STYLES: dict[str | None, type["Formatter"]] = {}
 
 
 class Formatter:
-    """
-    Fixit post-transform code style and formatting interface.
-    """
+    """Fixit post-transform code style and formatting interface."""
 
     STYLE: str
     """
@@ -32,10 +30,8 @@ class Formatter:
     def __init_subclass__(cls) -> None:
         FORMAT_STYLES[cls.STYLE] = cls
 
-    def format(self, module: Module, path: Path) -> FileContent:
-        """
-        Format the given :class:`~libcst.Module` and return it as UTF-8 encoded bytes.
-        """
+    def format(self, module: Module, _path: Path) -> FileContent:
+        """Format the given :class:`~libcst.Module` and return it as UTF-8 encoded bytes."""
         return module.bytes
 
 

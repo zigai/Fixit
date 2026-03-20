@@ -15,9 +15,7 @@ UNNECESSARY_LIST_COMPREHENSION: str = (
 
 
 class NoRedundantListComprehension(LintRule):
-    """
-    A derivative of flake8-comprehensions's C407 rule.
-    """
+    """A derivative of flake8-comprehensions's C407 rule."""
 
     VALID = [
         Valid("any(val for val in iterable)"),

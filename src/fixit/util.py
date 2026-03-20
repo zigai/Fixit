@@ -17,7 +17,7 @@ Return = TypeVar("Return")
 Sentinel = object()
 
 
-class capture(Generic[Yield, Send, Return]):
+class Capture(Generic[Yield, Send, Return]):
     """
     Wrap a generator, and capture it's final return value in the :attr:`result` property.
 
@@ -62,12 +62,13 @@ class capture(Generic[Yield, Send, Return]):
 
     @property
     def result(self) -> Return:
-        """
-        Contains the final return value from the wrapped generator, if any.
-        """
+        """Contains the final return value from the wrapped generator, if any."""
         if self._result is Sentinel:
             raise ValueError("Generator hasn't completed")
         return cast(Return, self._result)
+
+
+capture = Capture
 
 
 @contextmanager

@@ -31,6 +31,32 @@ from .ftypes import (
 LOG = logging.getLogger(__name__)
 
 
+def _result_from_exception(path: Path, error: Exception) -> Result:
+    return Result(path, violation=None, error=(error, traceback.format_exc()))
+
+
+def _expand_paths(paths: Iterable[Path]) -> tuple[list[Path], bool, Path]:
+    expanded_paths: list[Path] = []
+    is_stdin = False
+    stdin_path = Path("stdin")
+
+    for index, path in enumerate(paths):
+        if path == STDIN:
+            if index == 0:
+                is_stdin = True
+            else:
+                LOG.warning("Cannot mix stdin ('-') with normal paths, ignoring")
+        elif is_stdin:
+            if index == 1:
+                stdin_path = path
+            else:
+                raise ValueError("too many stdin paths")
+        else:
+            expanded_paths.extend(trailrunner.walk(path))
+
+    return expanded_paths, is_stdin, stdin_path
+
+
 def print_result(
     result: Result,
     *,
@@ -141,10 +167,10 @@ def fixit_bytes(
             updated = runner.apply_replacements(pending_fixes)
             return format_module(updated, path, config)
 
-    except Exception as error:
+    except Exception as error:  # noqa: BLE001 - result conversion boundary
         # TODO: this is not the right place to catch errors
         LOG.debug("Exception while linting", exc_info=error)
-        yield Result(path, violation=None, error=(error, traceback.format_exc()))
+        yield _result_from_exception(path, error)
 
     return None
 
@@ -177,9 +203,9 @@ def fixit_stdin(
         if autofix:
             sys.stdout.buffer.write(updated or content)
 
-    except Exception as error:
+    except Exception as error:  # noqa: BLE001 - stdin boundary
         LOG.debug("Exception while fixit_stdin", exc_info=error)
-        yield Result(path, violation=None, error=(error, traceback.format_exc()))
+        yield _result_from_exception(path, error)
 
 
 def fixit_file(
@@ -210,12 +236,12 @@ def fixit_file(
             path, content, config=config, autofix=autofix, metrics_hook=metrics_hook
         )
         if updated and updated != content:
-            LOG.info(f"{path}: writing changes to file")
+            LOG.info("%s: writing changes to file", path)
             path.write_bytes(updated)
 
-    except Exception as error:
+    except Exception as error:  # noqa: BLE001 - file boundary
         LOG.debug("Exception while fixit_file", exc_info=error)
-        yield Result(path, violation=None, error=(error, traceback.format_exc()))
+        yield _result_from_exception(path, error)
 
 
 def _fixit_file_wrapper(
@@ -227,7 +253,7 @@ def _fixit_file_wrapper(
 ) -> list[Result]:
     """
     Wrapper because generators can't be pickled or used directly via multiprocessing
-    TODO: replace this with some sort of queue or whatever
+    TODO: replace this with some sort of queue or whatever.
     """
     return list(fixit_file(path, autofix=autofix, options=options, metrics_hook=metrics_hook))
 
@@ -270,22 +296,7 @@ def fixit_paths(
     if not paths:
         return
 
-    expanded_paths: list[Path] = []
-    is_stdin = False
-    stdin_path = Path("stdin")
-    for i, path in enumerate(paths):
-        if path == STDIN:
-            if i == 0:
-                is_stdin = True
-            else:
-                LOG.warning("Cannot mix stdin ('-') with normal paths, ignoring")
-        elif is_stdin:
-            if i == 1:
-                stdin_path = path
-            else:
-                raise ValueError("too many stdin paths")
-        else:
-            expanded_paths.extend(trailrunner.walk(path))
+    expanded_paths, is_stdin, stdin_path = _expand_paths(paths)
 
     if is_stdin:
         yield from fixit_stdin(

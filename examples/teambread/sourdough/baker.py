@@ -4,6 +4,6 @@
 # LICENSE file in the root directory of this source tree.
 
 
-def main():
+def main() -> None:
     name = "Paul"
     print(f"hello {name}")

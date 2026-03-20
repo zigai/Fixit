@@ -59,12 +59,12 @@ class ComparePrimitivesByEqual(LintRule):
         prev_comparator = node.left
         for target in node.comparisons:
             op, comparator = target.operator, target.comparator
-            if isinstance(op, (cst.Is, cst.IsNot)):
-                if (prev_comparator and isinstance(prev_comparator, self.PRIMITIVES)) or isinstance(
-                    comparator, self.PRIMITIVES
-                ):
-                    self.report(node, replacement=self.replace_operators(node))
-                    return
+            if isinstance(op, (cst.Is, cst.IsNot)) and (
+                isinstance(prev_comparator, self.PRIMITIVES)
+                or isinstance(comparator, self.PRIMITIVES)
+            ):
+                self.report(node, replacement=self.replace_operators(node))
+                return
             prev_comparator = comparator
 
     def replace_operators(self, node: cst.Comparison) -> cst.Comparison:
@@ -72,23 +72,23 @@ class ComparePrimitivesByEqual(LintRule):
         comparisons = []
         for target in node.comparisons:
             op, comparator = target.operator, target.comparator
-            if isinstance(op, (cst.Is, cst.IsNot)):
-                if isinstance(prev_comparator, self.PRIMITIVES) or isinstance(
-                    comparator, self.PRIMITIVES
-                ):
-                    target = target.with_changes(
-                        operator=(
-                            cst.Equal(
-                                whitespace_before=op.whitespace_before,
-                                whitespace_after=op.whitespace_after,
-                            )
-                            if isinstance(op, cst.Is)
-                            else cst.NotEqual(
-                                whitespace_before=op.whitespace_before,
-                                whitespace_after=op.whitespace_after,
-                            )
+            if isinstance(op, (cst.Is, cst.IsNot)) and (
+                isinstance(prev_comparator, self.PRIMITIVES)
+                or isinstance(comparator, self.PRIMITIVES)
+            ):
+                target = target.with_changes(
+                    operator=(
+                        cst.Equal(
+                            whitespace_before=op.whitespace_before,
+                            whitespace_after=op.whitespace_after,
+                        )
+                        if isinstance(op, cst.Is)
+                        else cst.NotEqual(
+                            whitespace_before=op.whitespace_before,
+                            whitespace_after=op.whitespace_after,
                         )
                     )
+                )
             comparisons.append(target)
             prev_comparator = comparator
 

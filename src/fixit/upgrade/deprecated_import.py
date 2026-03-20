@@ -13,9 +13,7 @@ from fixit import Invalid, LintRule, Valid
 
 
 class FixitDeprecatedImport(LintRule):
-    """
-    Upgrade lint rules to replace deprecated imports with their replacements.
-    """
+    """Upgrade lint rules to replace deprecated imports with their replacements."""
 
     MESSAGE = "Fixit deprecated import {old_name}, use {new_name} instead"
     METADATA_DEPENDENCIES = (FullyQualifiedNameProvider,)

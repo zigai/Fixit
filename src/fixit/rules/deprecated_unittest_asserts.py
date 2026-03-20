@@ -11,7 +11,7 @@ from fixit import Invalid, LintRule, Valid
 
 class DeprecatedUnittestAsserts(LintRule):
     """
-    Discourages the use of various deprecated unittest.TestCase functions
+    Discourages the use of various deprecated unittest.TestCase functions.
 
     See https://docs.python.org/3/library/unittest.html#deprecated-aliases
     """

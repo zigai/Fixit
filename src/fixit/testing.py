@@ -9,11 +9,19 @@ import unittest
 from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 from .engine import LintRunner, diff_violation
 from .ftypes import Config, Invalid, Valid
 from .rule import LintRule
+
+
+class _Patch(Protocol):
+    def apply(self, source: str) -> str: ...
+
+
+class _Report(Protocol):
+    patch: _Patch | None
 
 
 def _dedent(src: str) -> str:
@@ -27,7 +35,7 @@ def get_fixture_path(fixture_top_dir: Path, rule_module: str, rules_package: str
     return fixture_top_dir / fixture_subdir
 
 
-def validate_patch(report: Any, test_case: Invalid) -> None:
+def validate_patch(report: _Report, test_case: Invalid) -> None:
     patch = report.patch
     expected_replacement = test_case.expected_replacement
 
@@ -76,38 +84,34 @@ class LintRuleTestCase(unittest.TestCase):
         reports = list(runner.collect_violations([rule], config))
 
         if isinstance(test_case, Valid):
-            self.assertEqual(
-                len(reports),
-                0,
+            assert len(reports) == 0, (
                 'Expected zero reports for this "valid" test case. Instead, found:\n'
-                + "\n".join(str(e) for e in reports),
+                + "\n".join(str(e) for e in reports)
             )
             return
 
-        self.assertGreater(
-            len(reports),
-            0,
+        assert len(reports) > 0, (
             'Expected a report for this "invalid" test case but `self.report` was '
-            "not called:\n" + test_case.code,
+            "not called:\n" + test_case.code
         )
 
         for report in reports:
             if test_case.range is not None:
-                self.assertEqual(test_case.range, report.range)
+                assert test_case.range == report.range
 
             if test_case.expected_message is not None:
-                self.assertEqual(test_case.expected_message, report.message)
+                assert test_case.expected_message == report.message
 
         if test_case.expected_replacement:
             # make sure we produced expected final code
             expected_code = _dedent(test_case.expected_replacement)
             modified_code = runner.apply_replacements(reports).bytes.decode()
-            self.assertMultiLineEqual(expected_code, modified_code)
+            assert expected_code == modified_code
 
             if len(reports) == 1:
                 # make sure we generated a reasonable diff
                 expected_diff = diff_violation(path, runner.module, reports[0])
-                self.assertEqual(expected_diff, reports[0].diff)
+                assert expected_diff == reports[0].diff
 
 
 def gen_test_methods_for_rule(rule: LintRule) -> TestCasePrecursor:

@@ -13,16 +13,13 @@ from typing import (
 )
 
 from libcst import (
-    BaseSuite,
     BatchableCSTVisitor,
     Comma,
     CSTNode,
     Decorator,
     EmptyLine,
     IndentedBlock,
-    LeftSquareBracket,
     Module,
-    RightSquareBracket,
     SimpleStatementSuite,
     TrailingWhitespace,
 )
@@ -108,6 +105,59 @@ class LintRule(BatchableCSTVisitor):
 
     _visit_hook: VisitHook | None = None
 
+    def _node_trailing_whitespace(self, node: CSTNode) -> TrailingWhitespace | None:
+        trailing_whitespace = getattr(node, "trailing_whitespace", None)
+        if trailing_whitespace is not None:
+            return trailing_whitespace
+
+        body = getattr(node, "body", None)
+        if isinstance(body, SimpleStatementSuite):
+            return body.trailing_whitespace
+        if isinstance(body, IndentedBlock):
+            return body.header
+        return None
+
+    def _yield_comment_value(
+        self, trailing_whitespace: TrailingWhitespace | None
+    ) -> Generator[str, None, None]:
+        if trailing_whitespace and trailing_whitespace.comment:
+            yield trailing_whitespace.comment.value
+
+    def _yield_empty_line_comments(
+        self, empty_lines: Sequence[EmptyLine] | None
+    ) -> Generator[str, None, None]:
+        if empty_lines is None:
+            return
+
+        for line in empty_lines:
+            if line.comment:
+                yield line.comment.value
+
+    def _yield_direct_node_comments(self, node: CSTNode) -> Generator[str, None, None]:
+        yield from self._yield_comment_value(self._node_trailing_whitespace(node))
+
+        comma = getattr(node, "comma", None)
+        if isinstance(comma, Comma):
+            first_line = getattr(comma.whitespace_after, "first_line", None)
+            yield from self._yield_comment_value(first_line)
+
+        right_bracket = getattr(node, "rbracket", None)
+        if right_bracket is not None:
+            first_line = getattr(right_bracket.whitespace_before, "first_line", None)
+            yield from self._yield_comment_value(first_line)
+
+        left_bracket = getattr(node, "lbracket", None)
+        if left_bracket is not None:
+            yield from self._yield_empty_line_comments(
+                getattr(left_bracket.whitespace_after, "empty_lines", None)
+            )
+
+        yield from self._yield_empty_line_comments(getattr(node, "lines_after_decorators", None))
+        yield from self._yield_empty_line_comments(getattr(node, "leading_lines", None))
+
+    def _should_stop_comment_search(self, node: CSTNode) -> bool:
+        return getattr(node, "leading_lines", None) is not None and not isinstance(node, Decorator)
+
     def node_comments(self, node: CSTNode) -> Generator[str, None, None]:
         """
         Yield all comments associated with the given node.
@@ -115,55 +165,9 @@ class LintRule(BatchableCSTVisitor):
         Includes comments from both leading comments and trailing inline comments.
         """
         while not isinstance(node, Module):
-            # trailing_whitespace can either be a property of the node itself, or in
-            # case of blocks, be part of the block's body element
-            tw: TrailingWhitespace | None = getattr(node, "trailing_whitespace", None)
-            if tw is None:
-                body: BaseSuite | None = getattr(node, "body", None)
-                if isinstance(body, SimpleStatementSuite):
-                    tw = body.trailing_whitespace
-                elif isinstance(body, IndentedBlock):
-                    tw = body.header
-
-            if tw and tw.comment:
-                yield tw.comment.value
-
-            comma: Comma | None = getattr(node, "comma", None)
-            if isinstance(comma, Comma):
-                tw = getattr(comma.whitespace_after, "first_line", None)
-                if tw and tw.comment:
-                    yield tw.comment.value
-
-            rb: RightSquareBracket | None = getattr(node, "rbracket", None)
-            if rb is not None:
-                tw = getattr(rb.whitespace_before, "first_line", None)
-                if tw and tw.comment:
-                    yield tw.comment.value
-
-            el: Sequence[EmptyLine] | None = None
-            lb: LeftSquareBracket | None = getattr(node, "lbracket", None)
-            if lb is not None:
-                el = getattr(lb.whitespace_after, "empty_lines", None)
-                if el is not None:
-                    for line in el:
-                        if line.comment:
-                            yield line.comment.value
-
-            el = getattr(node, "lines_after_decorators", None)
-            if el is not None:
-                for line in el:
-                    if line.comment:
-                        yield line.comment.value
-
-            ll: Sequence[EmptyLine] | None = getattr(node, "leading_lines", None)
-            if ll is not None:
-                for line in ll:
-                    if line.comment:
-                        yield line.comment.value
-                if not isinstance(node, Decorator):
-                    # stop looking once we've gone up far enough for leading_lines,
-                    # even if there are no comment lines here at all
-                    break
+            yield from self._yield_direct_node_comments(node)
+            if self._should_stop_comment_search(node):
+                break
 
             parent = self.get_metadata(ParentNodeProvider, node, None)
             if parent is None:

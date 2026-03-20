@@ -49,14 +49,52 @@ FIXIT_LOCAL_MODULE = "fixit.local"
 log = logging.getLogger(__name__)
 
 
+def _find_rules_or_log(qualified_rule: QualifiedRule) -> set[type[LintRule]]:
+    try:
+        return set(find_rules(qualified_rule))
+    except Exception as error:  # noqa: BLE001 - import boundary
+        log.warning(
+            "Failed to load rules '%s': %s: %s",
+            qualified_rule.module,
+            error.__class__.__name__,
+            error,
+        )
+        return set()
+
+
+def _validate_rule(
+    rule: str,
+    *,
+    root: Path,
+    config: RawConfig,
+    context: str,
+    exceptions: list[str],
+) -> None:
+    try:
+        qualified_rule = parse_rule(rule, root, config)
+    except Exception as error:  # noqa: BLE001 - validation boundary
+        exceptions.append(
+            f"Failed to parse rule `{rule}` for {context}: {error.__class__.__name__}: {error}"
+        )
+        return
+
+    try:
+        for _ in find_rules(qualified_rule):
+            pass
+    except Exception as error:  # noqa: BLE001 - import boundary
+        exceptions.append(
+            f"Failed to import rule `{rule}` for {context}: {error.__class__.__name__}: {error}"
+        )
+
+
 class ConfigError(ValueError):
-    def __init__(self, msg: str, config: RawConfig | None = None):
+    def __init__(self, msg: str, config: RawConfig | None = None) -> None:
         super().__init__(msg)
         self.config = config
 
 
 class CollectionError(RuntimeError):
-    def __init__(self, msg: str, rule: QualifiedRule):
+    def __init__(self, msg: str, rule: QualifiedRule) -> None:
         super().__init__(msg)
         self.rule = rule
 
@@ -65,16 +103,14 @@ class CollectionError(RuntimeError):
 
 
 def is_rule(obj: type[T]) -> bool:
-    """
-    Returns True if class is a concrete subclass of LintRule
-    """
+    """Returns True if class is a concrete subclass of LintRule."""
     return inspect.isclass(obj) and issubclass(obj, LintRule) and obj is not LintRule
 
 
 @contextmanager
 def local_rule_loader(rule: QualifiedRule) -> Iterator[None]:
     """
-    Allows importing local rules from arbitrary paths as submodules of fixit.local
+    Allows importing local rules from arbitrary paths as submodules of fixit.local.
 
     Imports ``fixit.local``, a "reserved" package within the fixit namespace, and
     overrides the module's path and import spec to come from the root of the specified
@@ -185,15 +221,10 @@ def collect_rules(
     # out-param to capture reasons when disabling rules for debugging
     debug_reasons: dict[type[LintRule], str] | None = None,
 ) -> Collection[LintRule]:
-    """
-    Import and return rules specified by `enables` and `disables`.
-    """
+    """Import and return rules specified by `enables` and `disables`."""
     all_rules: set[type[LintRule]] = set()
     named_enables: set[type[LintRule]] = set()
-    if debug_reasons is not None:
-        disabled_rules = debug_reasons
-    else:
-        disabled_rules = {}
+    disabled_rules = debug_reasons if debug_reasons is not None else {}
 
     with ExitStack() as stack:
         if config.enable_root_import:
@@ -205,26 +236,20 @@ def collect_rules(
             stack.enter_context(append_sys_path(path))
 
         for qualified_rule in config.enable:
-            try:
-                rules = set(find_rules(qualified_rule))
-                if qualified_rule.name:
-                    named_enables |= rules
-                all_rules |= rules
-            except Exception as e:
-                log.warning(
-                    f"Failed to load rules '{qualified_rule.module}': {e.__class__.__name__}: {e}"
-                )
+            rules = _find_rules_or_log(qualified_rule)
+            if qualified_rule.name:
+                named_enables |= rules
+            all_rules |= rules
 
         for qualified_rule in config.disable:
-            try:
-                disabled_rules.update(
-                    {r: "disabled" for r in find_rules(qualified_rule) if r not in named_enables}
-                )
-                all_rules -= set(disabled_rules)
-            except Exception as e:
-                log.warning(
-                    f"Failed to load rules '{qualified_rule.module}': {e.__class__.__name__}: {e}"
-                )
+            disabled_rules.update(
+                {
+                    rule_type: "disabled"
+                    for rule_type in _find_rules_or_log(qualified_rule)
+                    if rule_type not in named_enables
+                }
+            )
+            all_rules -= set(disabled_rules)
 
         if config.tags:
             disabled_rules.update({R: "tags" for R in all_rules if R.TAGS not in config.tags})
@@ -270,11 +295,9 @@ def locate_configs(path: Path, root: Path | None = None) -> list[Path]:
 
     while True:
         candidates = (path / filename for filename in FIXIT_CONFIG_FILENAMES)
-        for candidate in candidates:
-            if candidate.is_file():
-                results.append(candidate)
+        results.extend(candidate for candidate in candidates if candidate.is_file())
 
-        if path == root or path == path.parent:
+        if path in (root, path.parent):
             break
 
         path = path.parent
@@ -313,10 +336,7 @@ def get_sequence(
     config: RawConfig, key: str, *, data: dict[str, Any] | None = None
 ) -> Sequence[str]:
     value: Sequence[str]
-    if data:
-        value = data.pop(key, ())
-    else:
-        value = config.data.pop(key, ())
+    value = data.pop(key, ()) if data else config.data.pop(key, ())
 
     if not is_sequence(value):
         raise ConfigError(f"{key!r} must be array of values, got {type(key)}", config=config)
@@ -327,10 +347,7 @@ def get_sequence(
 def get_options(
     config: RawConfig, key: str, *, data: dict[str, Any] | None = None
 ) -> RuleOptionsTable:
-    if data:
-        mapping = data.pop(key, {})
-    else:
-        mapping = config.data.pop(key, {})
+    mapping = data.pop(key, {}) if data else config.data.pop(key, {})
 
     if not isinstance(mapping, Mapping):
         raise ConfigError(f"{key!r} must be mapping of values, got {type(key)}", config=config)
@@ -338,22 +355,20 @@ def get_options(
     rule_configs: RuleOptionsTable = {}
     for rule_name, rule_config in mapping.items():
         rule_configs[rule_name] = {}
-        for key, value in rule_config.items():
+        for option_name, value in rule_config.items():
             if not isinstance(value, RuleOptionTypes):
                 raise ConfigError(
-                    f"{key!r} must be one of {RuleOptionTypes}, got {type(value)}",
+                    f"{option_name!r} must be one of {RuleOptionTypes}, got {type(value)}",
                     config=config,
                 )
 
-            rule_configs[rule_name][key] = value
+            rule_configs[rule_name][option_name] = value
 
     return rule_configs
 
 
 def parse_rule(rule: str, root: Path, config: RawConfig | None = None) -> QualifiedRule:
-    """
-    Given a raw rule string, parse and return a QualifiedRule object
-    """
+    """Given a raw rule string, parse and return a QualifiedRule object."""
     if not (match := QualifiedRuleRegex.match(rule)):
         raise ConfigError(f"invalid rule name {rule!r}", config=config)
 
@@ -367,7 +382,9 @@ def parse_rule(rule: str, root: Path, config: RawConfig | None = None) -> Qualif
     return QualifiedRule(module, name)
 
 
-def merge_configs(path: Path, raw_configs: list[RawConfig], root: Path | None = None) -> Config:
+def merge_configs(  # noqa: C901 - config merge orchestration
+    path: Path, raw_configs: list[RawConfig], root: Path | None = None
+) -> Config:
     """
     Given multiple raw configs, merge them in priority order.
 
@@ -383,13 +400,33 @@ def merge_configs(path: Path, raw_configs: list[RawConfig], root: Path | None = 
     output_format: OutputFormat = OutputFormat.fixit
     output_template: str = ""
 
+    def update_target_python_version(python_version: str | None) -> None:
+        nonlocal target_python_version
+
+        if python_version is None:
+            return
+        if not isinstance(python_version, str):
+            raise ConfigError("'python-version' must be a string", config=config)
+        if python_version:
+            try:
+                target_python_version = Version(python_version)
+            except InvalidVersion as error:
+                raise ConfigError(
+                    f"'python-version' {python_version!r} is not valid",
+                    config=config,
+                ) from error
+            return
+
+        # disable versioning, aka python-version = ""
+        target_python_version = None
+
     def process_subpath(
         subpath: Path,
         *,
         enable: Sequence[str] = (),
         disable: Sequence[str] = (),
         options: RuleOptionsTable | None = None,
-        python_version: Any = None,
+        python_version: str | None = None,
         formatter: str | None = None,
     ) -> None:
         nonlocal target_python_version
@@ -415,18 +452,7 @@ def merge_configs(path: Path, raw_configs: list[RawConfig], root: Path | None = 
         if options:
             rule_options.update(options)
 
-        if python_version is not None:
-            if python_version:
-                try:
-                    target_python_version = Version(python_version)
-                except InvalidVersion:
-                    raise ConfigError(
-                        f"'python-version' {python_version!r} is not valid",
-                        config=config,
-                    )
-
-            else:  # disable versioning, aka python-version = ""
-                target_python_version = None
+        update_target_python_version(python_version)
 
         if formatter:
             if formatter not in FORMAT_STYLES:
@@ -497,7 +523,7 @@ def merge_configs(path: Path, raw_configs: list[RawConfig], root: Path | None = 
                 formatter=override.pop("formatter", None),
             )
 
-        for key in data.keys():
+        for key in data:
             log.warning("unknown configuration option %r", key)
 
     return Config(
@@ -520,9 +546,7 @@ def generate_config(
     *,
     options: Options | None = None,
 ) -> Config:
-    """
-    Given a file path, walk upwards looking for and applying cascading configs
-    """
+    """Given a file path, walk upwards looking for and applying cascading configs."""
     path = (path or Path.cwd()).resolve()
 
     if root is not None:
@@ -566,19 +590,9 @@ def validate_config(path: Path) -> list[str]:
 
         def validate_rules(rules: list[str], context: str) -> None:
             for rule in rules:
-                try:
-                    qualified_rule = parse_rule(rule, root, configs)
-                    try:
-                        for _ in find_rules(qualified_rule):
-                            pass
-                    except Exception as e:
-                        exceptions.append(
-                            f"Failed to import rule `{rule}` for {context}: {e.__class__.__name__}: {e}"
-                        )
-                except Exception as e:
-                    exceptions.append(
-                        f"Failed to parse rule `{rule}` for {context}: {e.__class__.__name__}: {e}"
-                    )
+                _validate_rule(
+                    rule, root=root, config=configs, context=context, exceptions=exceptions
+                )
 
         data = configs.data
         validate_rules(data.get("enable", []), "global enable")
@@ -595,7 +609,7 @@ def validate_config(path: Path) -> list[str]:
                 f"override disable: `{override_path}`",
             )
 
-    except Exception as e:
-        exceptions.append(f"Invalid config: {e.__class__.__name__}: {e}")
+    except Exception as error:  # noqa: BLE001 - validation boundary
+        exceptions.append(f"Invalid config: {error.__class__.__name__}: {error}")
 
     return exceptions

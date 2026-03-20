@@ -9,9 +9,7 @@ from fixit import Invalid, LintRule, Valid
 
 
 class UseAsyncSleepInAsyncDef(LintRule):
-    """
-    Detect if asyncio.sleep is used in an async function
-    """
+    """Detect if asyncio.sleep is used in an async function."""
 
     MESSAGE: str = "Use asyncio.sleep in async function"
     METADATA_DEPENDENCIES = (QualifiedNameProvider,)
@@ -120,7 +118,7 @@ class UseAsyncSleepInAsyncDef(LintRule):
     def visit_FunctionDef(self, node: cst.FunctionDef) -> None:
         self.async_func = node.asynchronous is not None
 
-    def leave_FunctionDef(self, original_node: cst.FunctionDef) -> None:
+    def leave_FunctionDef(self, _original_node: cst.FunctionDef) -> None:
         self.async_func = False
 
     def visit_Call(self, node: cst.Call) -> None:

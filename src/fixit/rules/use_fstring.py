@@ -32,15 +32,16 @@ def _gen_match_simple_expression(
 ) -> Callable[[cst.BaseExpression], bool]:
     def _match_simple_expression(node: cst.BaseExpression) -> bool:
         # either each element in Tuple is simple expression or the entire expression is simple.
-        if (
-            isinstance(node, cst.Tuple)
-            and all(
-                len(codegen(elm.value)) < USE_FSTRING_SIMPLE_EXPRESSION_MAX_LENGTH
-                for elm in node.elements
+        return bool(
+            (
+                isinstance(node, cst.Tuple)
+                and all(
+                    len(codegen(elm.value)) < USE_FSTRING_SIMPLE_EXPRESSION_MAX_LENGTH
+                    for elm in node.elements
+                )
             )
-        ) or len(codegen(node)) < USE_FSTRING_SIMPLE_EXPRESSION_MAX_LENGTH:
-            return True
-        return False
+            or len(codegen(node)) < USE_FSTRING_SIMPLE_EXPRESSION_MAX_LENGTH
+        )
 
     return _match_simple_expression
 
@@ -51,7 +52,7 @@ class EscapeStringQuote(cst.CSTTransformer):
         super().__init__()
 
     def leave_SimpleString(
-        self, original_node: cst.SimpleString, updated_node: cst.SimpleString
+        self, original_node: cst.SimpleString, _updated_node: cst.SimpleString
     ) -> cst.SimpleString:
         if self.quote == original_node.quote:
             for quo in ["'", '"', "'''", '"""']:
@@ -60,11 +61,11 @@ class EscapeStringQuote(cst.CSTTransformer):
                         original_node.prefix + quo + original_node.raw_value + quo
                     )
                     if escaped_string.evaluated_value != original_node.evaluated_value:
-                        raise Exception(
+                        raise ValueError(
                             f"Failed to escape string:\n  original:{original_node.value}\n  escaped:{escaped_string.value}"
                         )
                     return escaped_string
-            raise Exception(
+            raise ValueError(
                 f"Cannot find a good quote for escaping the SimpleString: {original_node.value}"
             )
         return original_node
@@ -203,7 +204,7 @@ class UseFstring(LintRule):
                             )
                         )
                     )
-                except Exception:
+                except ValueError:
                     self.report(node)
                     return
                 token = tokens[i]

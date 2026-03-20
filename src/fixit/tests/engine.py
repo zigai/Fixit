@@ -17,8 +17,8 @@ from libcst import (
 )
 from libcst.metadata import CodePosition, CodeRange
 
-from ..engine import diff_violation
-from ..ftypes import LintViolation
+from fixit.engine import diff_violation
+from fixit.ftypes import LintViolation
 
 
 class EngineTest(TestCase):
@@ -56,4 +56,4 @@ class EngineTest(TestCase):
             """
         )
         result = diff_violation(path, module, violation)
-        self.assertEqual(expected, result)
+        assert expected == result

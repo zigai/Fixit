@@ -6,6 +6,7 @@
 import sys
 from collections.abc import Iterable
 from pathlib import Path
+from shutil import which
 from subprocess import run
 
 # Use the copyright header from this file as the benchmark for all files
@@ -13,8 +14,12 @@ EXPECTED_HEADER = "\n".join(line for line in Path(__file__).read_text().splitlin
 
 
 def tracked_files() -> Iterable[Path]:
-    proc = run(
-        ["git", "ls-tree", "-r", "--name-only", "HEAD"],
+    git_executable = which("git")
+    if git_executable is None:
+        raise RuntimeError("git executable not found")
+
+    proc = run(  # noqa: S603 - fixed git command
+        [git_executable, "ls-tree", "-r", "--name-only", "HEAD"],
         check=True,
         capture_output=True,
         encoding="utf-8",
@@ -26,7 +31,7 @@ def tracked_files() -> Iterable[Path]:
     )
 
 
-def main():
+def main() -> None:
     error = False
     for path in tracked_files():
         content = path.read_text("utf-8")

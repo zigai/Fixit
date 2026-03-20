@@ -11,9 +11,7 @@ from fixit import Invalid, LintRule, Valid
 
 
 class NoRedundantArgumentsSuper(LintRule):
-    """
-    Remove redundant arguments when using super for readability.
-    """
+    """Remove redundant arguments when using super for readability."""
 
     MESSAGE: str = (
         "Do not use arguments when calling super for the parent class. See "
@@ -121,7 +119,7 @@ class NoRedundantArgumentsSuper(LintRule):
     def visit_ClassDef(self, node: cst.ClassDef) -> None:
         self.current_classes.append(node.name.value)
 
-    def leave_ClassDef(self, original_node: cst.ClassDef) -> None:
+    def leave_ClassDef(self, _original_node: cst.ClassDef) -> None:
         self.current_classes.pop()
 
     def leave_Call(self, original_node: cst.Call) -> None:

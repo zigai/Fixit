@@ -119,7 +119,7 @@ def lint(
     paths: Sequence[Path],
 ) -> None:
     """
-    Lint one or more paths and return suggestions
+    Lint one or more paths and return suggestions.
 
     pass "- <FILENAME>" for STDIN representing <FILENAME>
     """
@@ -173,7 +173,7 @@ def fix(
     paths: Sequence[Path],
 ) -> None:
     """
-    Lint and autofix one or more files and return results
+    Lint and autofix one or more files and return results.
 
     pass "- <FILENAME>" for STDIN representing <FILENAME>;
     this will ignore "--interactive" and always use "--automatic"
@@ -221,9 +221,13 @@ def fix(
                 fixed += 1
         if interactive and result.violation and result.violation.autofixable:
             autofixes += 1
-            answer = click.prompt("Apply autofix?", default="y", type=click.Choice("ynq", False))
+            answer = click.prompt(
+                "Apply autofix?",
+                default="y",
+                type=click.Choice("ynq", case_sensitive=False),
+            )
             if answer == "y":
-                generator.respond(True)
+                generator.respond(answer=True)
                 fixed += 1
             elif answer == "q":
                 break
@@ -252,7 +256,7 @@ def lsp(
 ) -> None:
     """
     Start server for:
-    https://microsoft.github.io/language-server-protocol/
+    https://microsoft.github.io/language-server-protocol/.
     """
     from .lsp import LSP
 
@@ -270,9 +274,7 @@ def lsp(
 @click.pass_context
 @click.argument("rules", nargs=-1, required=True, type=str)
 def test(ctx: click.Context, rules: Sequence[str]) -> None:
-    """
-    Test lint rules and their VALID/INVALID cases
-    """
+    """Test lint rules and their VALID/INVALID cases."""
     qual_rules = [parse_rule(rule, Path.cwd().resolve()) for rule in rules]
     lint_rules = collect_rules(Config(enable=qual_rules, disable=[], python_version=None))
     test_cases = generate_lint_rule_test_cases(lint_rules)
@@ -293,7 +295,7 @@ def test(ctx: click.Context, rules: Sequence[str]) -> None:
 @click.argument("paths", nargs=-1, type=click.Path(path_type=Path))
 def upgrade(ctx: click.Context, paths: Sequence[Path]) -> None:
     """
-    Upgrade lint rules and apply deprecation fixes
+    Upgrade lint rules and apply deprecation fixes.
 
     roughly equivalent to `fixit --rules fixit.upgrade fix --automatic`
     """
@@ -307,9 +309,7 @@ def upgrade(ctx: click.Context, paths: Sequence[Path]) -> None:
 @click.pass_context
 @click.argument("paths", nargs=-1, type=click.Path(exists=True, path_type=Path))
 def debug(ctx: click.Context, paths: Sequence[Path]) -> None:
-    """
-    Print materialized configuration for paths
-    """
+    """Print materialized configuration for paths."""
     options: Options = ctx.obj
 
     if not paths:
@@ -340,10 +340,8 @@ def debug(ctx: click.Context, paths: Sequence[Path]) -> None:
 @main.command(name="validate-config")
 @click.pass_context
 @click.argument("path", nargs=1, type=click.Path(exists=True, path_type=Path))
-def validate_config_command(ctx: click.Context, path: Path) -> None:
-    """
-    Validate the config provided
-    """
+def validate_config_command(_ctx: click.Context, path: Path) -> None:
+    """Validate the config provided."""
     exceptions = validate_config(path)
 
     try:
@@ -354,4 +352,4 @@ def validate_config_command(ctx: click.Context, path: Path) -> None:
     if exceptions:
         for e in exceptions:
             pprint(e)
-        exit(-1)
+        sys.exit(-1)

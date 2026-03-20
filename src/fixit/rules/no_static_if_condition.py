@@ -11,9 +11,7 @@ from fixit import Invalid, LintRule, Valid
 
 
 class NoStaticIfCondition(LintRule):
-    """
-    Discourages ``if`` conditions which evaluate to a static value (e.g. ``or True``, ``and False``, etc).
-    """
+    """Discourages ``if`` conditions which evaluate to a static value (e.g. ``or True``, ``and False``, etc)."""
 
     MESSAGE: str = (
         "Your if condition appears to evaluate to a static value (e.g. `or True`, `and False`). "
@@ -118,31 +116,38 @@ class NoStaticIfCondition(LintRule):
         if m.matches(node, m.Call()):
             # cannot reason about function calls
             return None
-        if m.matches(node, m.UnaryOperation(operator=m.Not())):
-            sub_value = cls._extract_static_bool(
-                cst.ensure_type(node, cst.UnaryOperation).expression
-            )
-            if sub_value is None:
-                return None
-            return not sub_value
-
         if m.matches(node, m.Name("True")):
             return True
 
         if m.matches(node, m.Name("False")):
             return False
 
-        if m.matches(node, m.BooleanOperation()):
-            node = cst.ensure_type(node, cst.BooleanOperation)
-            left_value = cls._extract_static_bool(node.left)
-            right_value = cls._extract_static_bool(node.right)
-            if m.matches(node.operator, m.Or()):
-                if right_value is True or left_value is True:
-                    return True
+        if m.matches(node, m.UnaryOperation(operator=m.Not())):
+            unary_node = cst.ensure_type(node, cst.UnaryOperation)
+            return cls._negate_static_bool(unary_node.expression)
 
-            if m.matches(node.operator, m.And()):
-                if right_value is False or left_value is False:
-                    return False
+        if m.matches(node, m.BooleanOperation()):
+            return cls._extract_static_bool_from_operation(
+                cst.ensure_type(node, cst.BooleanOperation)
+            )
+
+        return None
+
+    @classmethod
+    def _negate_static_bool(cls, node: cst.BaseExpression) -> bool | None:
+        sub_value = cls._extract_static_bool(node)
+        return None if sub_value is None else not sub_value
+
+    @classmethod
+    def _extract_static_bool_from_operation(cls, node: cst.BooleanOperation) -> bool | None:
+        left_value = cls._extract_static_bool(node.left)
+        right_value = cls._extract_static_bool(node.right)
+
+        if m.matches(node.operator, m.Or()) and (right_value is True or left_value is True):
+            return True
+
+        if m.matches(node.operator, m.And()) and (right_value is False or left_value is False):
+            return False
 
         return None
 

@@ -275,25 +275,24 @@ class NoStringTypeAnnotation(LintRule):
     def visit_Subscript(self, node: cst.Subscript) -> None:
         if not self.has_future_annotations_import:
             return
-        if self.in_annotation:
-            if m.matches(
-                node,
-                m.Subscript(
-                    metadata=m.MatchMetadataIfTrue(
-                        QualifiedNameProvider,
-                        lambda qualnames: any(
-                            n.name
-                            in (
-                                "typing.Literal",
-                                "typing_extensions.Literal",
-                            )
-                            for n in qualnames
-                        ),
-                    )
-                ),
-                metadata_resolver=self,
-            ):
-                self.in_literal.add(node)
+        if self.in_annotation and m.matches(
+            node,
+            m.Subscript(
+                metadata=m.MatchMetadataIfTrue(
+                    QualifiedNameProvider,
+                    lambda qualnames: any(
+                        n.name
+                        in (
+                            "typing.Literal",
+                            "typing_extensions.Literal",
+                        )
+                        for n in qualnames
+                    ),
+                )
+            ),
+            metadata_resolver=self,
+        ):
+            self.in_literal.add(node)
 
     def leave_Subscript(self, original_node: cst.Subscript) -> None:
         if not self.has_future_annotations_import:

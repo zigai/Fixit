@@ -11,9 +11,7 @@ from fixit import Invalid, LintRule, Valid
 
 
 class VariadicCallableSyntax(LintRule):
-    """
-    Callable types with arbitrary parameters should be written as `Callable[..., T]`
-    """
+    """Callable types with arbitrary parameters should be written as `Callable[..., T]`."""
 
     METADATA_DEPENDENCIES = (QualifiedNameProvider,)
     VALID = [

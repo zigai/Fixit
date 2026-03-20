@@ -6,21 +6,15 @@
 import platform
 import re
 from collections.abc import Callable, Collection, Container, Iterable, Sequence
+from contextlib import AbstractContextManager
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import (
-    Any,
-    ContextManager,
-    TypedDict,
-    TypeVar,
-    Union,
-)
+from typing import Any, TypedDict, TypeVar
 
 from libcst import CSTNode, CSTNodeT, FlattenSentinel, RemovalSentinel
 from libcst._add_slots import add_slots
-from libcst.metadata import CodePosition as CodePosition
-from libcst.metadata import CodeRange as CodeRange
+from libcst.metadata import CodePosition, CodeRange
 from packaging.version import Version
 
 __all__ = ("CodePosition", "CodeRange", "Version")
@@ -34,13 +28,13 @@ RuleOptionTypes = (str, int, float)
 RuleOptions = dict[str, str | int | float]
 RuleOptionsTable = dict[str, RuleOptions]
 
-NodeReplacement = Union[CSTNodeT, FlattenSentinel[CSTNodeT], RemovalSentinel]
+NodeReplacement = CSTNodeT | FlattenSentinel[CSTNodeT] | RemovalSentinel
 
 Metrics = dict[str, Any]
 MetricsHook = Callable[[Metrics], None]
 
 VisitorMethod = Callable[[CSTNode], None]
-VisitHook = Callable[[str], ContextManager[None]]
+VisitHook = Callable[[str], AbstractContextManager[None]]
 
 
 class OutputFormat(str, Enum):
@@ -99,11 +93,11 @@ class QualifiedRuleRegexResult(TypedDict):
     local: str | None
 
 
-def is_sequence(value: Any) -> bool:
+def is_sequence(value: object) -> bool:
     return isinstance(value, Sequence) and not isinstance(value, (str, bytes))
 
 
-def is_collection(value: Any) -> bool:
+def is_collection(value: object) -> bool:
     return isinstance(value, Iterable) and not isinstance(value, (str, bytes))
 
 
@@ -163,17 +157,12 @@ class Tags(Container[str]):
         if any(tag in self.exclude for tag in tags):
             return False
 
-        if not self.include or any(tag in self.include for tag in tags):
-            return True
-
-        return False
+        return bool(not self.include or any(tag in self.include for tag in tags))
 
 
 @dataclass
 class Options:
-    """
-    Command-line options to affect runtime behavior
-    """
+    """Command-line options to affect runtime behavior."""
 
     debug: bool | None = None
     config_file: Path | None = None
@@ -186,9 +175,7 @@ class Options:
 
 @dataclass
 class LSPOptions:
-    """
-    Command-line options to affect LSP runtime behavior
-    """
+    """Command-line options to affect LSP runtime behavior."""
 
     tcp: int | None
     ws: int | None
@@ -198,9 +185,7 @@ class LSPOptions:
 
 @dataclass
 class Config:
-    """
-    Materialized configuration valid for processing a single file.
-    """
+    """Materialized configuration valid for processing a single file."""
 
     path: Path = field(default_factory=Path)
     root: Path = field(default_factory=Path.cwd)
@@ -243,9 +228,7 @@ class RawConfig:
 @add_slots
 @dataclass(frozen=True)
 class LintViolation:
-    """
-    An individual lint error, with an optional replacement and expected diff.
-    """
+    """An individual lint error, with an optional replacement and expected diff."""
 
     rule_name: str
     range: CodeRange
@@ -256,17 +239,13 @@ class LintViolation:
 
     @property
     def autofixable(self) -> bool:
-        """
-        Whether the violation includes a suggested replacement.
-        """
+        """Whether the violation includes a suggested replacement."""
         return bool(self.replacement)
 
 
 @dataclass
 class Result:
-    """
-    A single lint result for a given file and lint rule.
-    """
+    """A single lint result for a given file and lint rule."""
 
     path: Path
     violation: LintViolation | None

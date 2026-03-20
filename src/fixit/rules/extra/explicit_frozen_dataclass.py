@@ -4,7 +4,6 @@
 # LICENSE file in the root directory of this source tree.
 
 import libcst as cst
-import libcst.matchers as m
 from libcst._nodes.whitespace import SimpleWhitespace
 from libcst.metadata import QualifiedName, QualifiedNameProvider, QualifiedNameSource
 
@@ -240,14 +239,14 @@ class ExplicitFrozenDataclass(LintRule):
                     args = ()
                     func = decorator
 
-                # pyre-fixme[6]: Expected `Union[cst._maybe_sentinel.MaybeSentinel,
-                #  cst._nodes.base.CSTNode, cst._removal_sentinel.RemovalSentinel]` for
-                #  1st param but got `Optional[cst._nodes.expression.Name]`.
-                if not any(m.matches(arg.keyword, m.Name("frozen")) for arg in args):  # type: ignore
+                if not any(
+                    isinstance(arg.keyword, cst.Name) and arg.keyword.value == "frozen"
+                    for arg in args
+                ):
                     new_decorator = cst.Call(
                         func=func,
-                        args=list(args)
-                        + [
+                        args=[
+                            *list(args),
                             cst.Arg(
                                 keyword=cst.Name("frozen"),
                                 value=cst.Name("True"),
@@ -255,7 +254,7 @@ class ExplicitFrozenDataclass(LintRule):
                                     whitespace_before=SimpleWhitespace(value=""),
                                     whitespace_after=SimpleWhitespace(value=""),
                                 ),
-                            )
+                            ),
                         ],
                     )
                     self.report(d, replacement=d.with_changes(decorator=new_decorator))

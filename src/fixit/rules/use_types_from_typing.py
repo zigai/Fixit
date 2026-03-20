@@ -117,10 +117,10 @@ class UseTypesFromTyping(LintRule):
         super().__init__()
         self.annotation_counter: int = 0
 
-    def visit_Annotation(self, node: libcst.Annotation) -> None:
+    def visit_Annotation(self, _node: libcst.Annotation) -> None:
         self.annotation_counter += 1
 
-    def leave_Annotation(self, original_node: libcst.Annotation) -> None:
+    def leave_Annotation(self, _original_node: libcst.Annotation) -> None:
         self.annotation_counter -= 1
 
     def visit_Name(self, node: libcst.Name) -> None:

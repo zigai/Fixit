@@ -165,7 +165,7 @@ class DeprecatedABCImport(LintRule):
     def is_except_block(self, node: cst.CSTNode) -> bool:
         """
         Check if the node is in an except block - if it is, we know to ignore it, as it
-        may be a fallback import
+        may be a fallback import.
         """
         parent = self.get_metadata(ParentNodeProvider, node, None)
         while parent is not None and not isinstance(parent, cst.Module):
@@ -177,9 +177,7 @@ class DeprecatedABCImport(LintRule):
         return False
 
     def visit_ImportFrom(self, node: cst.ImportFrom) -> None:
-        """
-        This catches the `from collections import <ABC>` cases
-        """
+        """This catches the `from collections import <ABC>` cases."""
         if self.is_except_block(node):
             return
 
@@ -226,9 +224,7 @@ class DeprecatedABCImport(LintRule):
         return imp[0] if len(imp) > 0 and isinstance(imp[0], cst.ImportFrom) else None
 
     def leave_Module(self, original_node: cst.Module) -> None:
-        """
-        While leaving the module, check if we need to split up imports.
-        """
+        """While leaving the module, check if we need to split up imports."""
         if self.update_module:
             # Filter the ABCs and non-ABCs
             abcs: list[str] = []
@@ -281,9 +277,7 @@ class DeprecatedABCImport(LintRule):
             self.report(original_node, replacement=original_node.with_changes(body=node_body))
 
     def visit_ImportAlias(self, node: cst.ImportAlias) -> None:
-        """
-        This catches the `import collections.<ABC>` cases.
-        """
+        """This catches the `import collections.<ABC>` cases."""
         if m.matches(
             node,
             m.ImportAlias(

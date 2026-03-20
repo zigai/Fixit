@@ -9,7 +9,6 @@ from functools import partial
 from pathlib import Path
 from typing import Any, TypeVar, cast
 
-import pygls.uris as Uri
 from lsprotocol.types import (
     TEXT_DOCUMENT_DID_CHANGE,
     TEXT_DOCUMENT_DID_OPEN,
@@ -24,6 +23,7 @@ from lsprotocol.types import (
     Range,
     TextEdit,
 )
+from pygls import uris
 from pygls.lsp.server import LanguageServer
 from pygls.workspace.text_document import TextDocument
 
@@ -38,7 +38,7 @@ class LSP:
     """
     Server for the Language Server Protocol.
     Provides diagnostics as you type, and exposes a formatter.
-    https://microsoft.github.io/language-server-protocol/
+    https://microsoft.github.io/language-server-protocol/.
     """
 
     def __init__(self, fixit_options: Options, lsp_options: LSPOptions) -> None:
@@ -58,9 +58,7 @@ class LSP:
         self.lsp.feature(TEXT_DOCUMENT_FORMATTING)(partial(self.format))
 
     def load_config(self, path: Path) -> Config:
-        """
-        Cached fetch of fixit.toml(s) for fixit_bytes.
-        """
+        """Cached fetch of fixit.toml(s) for fixit_bytes."""
         if path not in self._config_cache:
             self._config_cache[path] = generate_config(path, options=self.fixit_options)
         return self._config_cache[path]
@@ -68,10 +66,8 @@ class LSP:
     def diagnostic_generator(
         self, uri: str, autofix: bool = False
     ) -> Generator[Result, bool, FileContent | None] | None:
-        """
-        LSP wrapper (provides document state from `pygls`) for `fixit_bytes`.
-        """
-        path_uri = Uri.to_fs_path(uri)
+        """LSP wrapper (provides document state from `pygls`) for `fixit_bytes`."""
+        path_uri = uris.to_fs_path(uri)
         if not path_uri:
             return None
         path = Path(path_uri)
@@ -85,9 +81,7 @@ class LSP:
         )
 
     def _validate(self, uri: str, version: int) -> None:
-        """
-        Effect: publishes Fixit diagnostics to the LSP client.
-        """
+        """Effect: publishes Fixit diagnostics to the LSP client."""
         generator = self.diagnostic_generator(uri)
         if not generator:
             return
@@ -114,9 +108,7 @@ class LSP:
         )
 
     def validate(self, uri: str, version: int) -> None:
-        """
-        Effect: may publish Fixit diagnostics to the LSP client after a debounce delay.
-        """
+        """Effect: may publish Fixit diagnostics to the LSP client after a debounce delay."""
         if uri not in self._validate_uri:
             self._validate_uri[uri] = debounce(self.lsp_options.debounce_interval)(
                 partial(self._validate, uri)
@@ -150,9 +142,7 @@ class LSP:
         return [TextEdit(new_text=formatted_content.decode(), range=entire_range)]
 
     def start(self) -> None:
-        """
-        Effect: occupies the specified I/O channels.
-        """
+        """Effect: occupies the specified I/O channels."""
         if self.lsp_options.ws:
             self.lsp.start_ws("localhost", self.lsp_options.ws)
         if self.lsp_options.tcp:
@@ -171,7 +161,7 @@ class Debouncer:
         self._timer: threading.Timer | None = None
         self._lock = threading.Lock()
 
-    def __call__(self, *args: Any, **kwargs: Any) -> None:
+    def __call__(self, *args: object, **kwargs: object) -> None:
         with self._lock:
             if self._timer is not None:
                 self._timer.cancel()

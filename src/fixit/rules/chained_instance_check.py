@@ -148,9 +148,9 @@ class CollapseIsinstanceChecks(LintRule):
                     continue
 
                 target, match = call.args[0].value, call.args[1].value
-                for possible_target in targets:
+                for possible_target, matches in targets.items():
                     if target.deep_equals(possible_target):
-                        targets[possible_target].append(match)
+                        matches.append(match)
                         break
                 else:
                     operands.append(target)

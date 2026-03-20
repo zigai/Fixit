@@ -10,9 +10,7 @@ from fixit import Invalid, LintRule, Valid
 
 
 class FixitRemoveRuleSuffix(LintRule):
-    """
-    Remove the "Rule" suffix from lint rule class names
-    """
+    """Remove the "Rule" suffix from lint rule class names."""
 
     MESSAGE = "Do not end lint rule subclasses with 'Rule'"
     METADATA_DEPENDENCIES = (FullyQualifiedNameProvider,)
