@@ -6,9 +6,9 @@
 import logging
 import sys
 import traceback
+from collections.abc import Generator, Iterable
 from functools import partial
 from pathlib import Path
-from typing import Generator, Iterable, List, Optional
 
 import click
 import trailrunner
@@ -18,6 +18,7 @@ from .config import collect_rules, generate_config
 from .engine import LintRunner
 from .format import format_module
 from .ftypes import (
+    STDIN,
     Config,
     FileContent,
     LintViolation,
@@ -25,7 +26,6 @@ from .ftypes import (
     Options,
     OutputFormat,
     Result,
-    STDIN,
 )
 
 LOG = logging.getLogger(__name__)
@@ -82,16 +82,15 @@ def print_result(
             echo_color_precomputed_diff(result.violation.diff)
         return True
 
-    elif result.error:
+    if result.error:
         # An exception occurred while processing a file
         error, tb = result.error
         click.secho(f"{path}: EXCEPTION: {error}", fg="red", err=stderr)
         click.echo(tb.strip(), err=stderr)
         return True
 
-    else:
-        LOG.debug("%s: clean", path)
-        return False
+    LOG.debug("%s: clean", path)
+    return False
 
 
 def fixit_bytes(
@@ -100,8 +99,8 @@ def fixit_bytes(
     *,
     config: Config,
     autofix: bool = False,
-    metrics_hook: Optional[MetricsHook] = None,
-) -> Generator[Result, bool, Optional[FileContent]]:
+    metrics_hook: MetricsHook | None = None,
+) -> Generator[Result, bool, FileContent | None]:
     """
     Lint raw bytes content representing a single path, using the given configuration.
 
@@ -126,7 +125,7 @@ def fixit_bytes(
             return None
 
         runner = LintRunner(path, content)
-        pending_fixes: List[LintViolation] = []
+        pending_fixes: list[LintViolation] = []
 
         clean = True
         for violation in runner.collect_violations(rules, config, metrics_hook):
@@ -154,8 +153,8 @@ def fixit_stdin(
     path: Path,
     *,
     autofix: bool = False,
-    options: Optional[Options] = None,
-    metrics_hook: Optional[MetricsHook] = None,
+    options: Options | None = None,
+    metrics_hook: MetricsHook | None = None,
 ) -> Generator[Result, bool, None]:
     """
     Wrapper around :func:`fixit_bytes` for formatting content from STDIN.
@@ -187,8 +186,8 @@ def fixit_file(
     path: Path,
     *,
     autofix: bool = False,
-    options: Optional[Options] = None,
-    metrics_hook: Optional[MetricsHook] = None,
+    options: Options | None = None,
+    metrics_hook: MetricsHook | None = None,
 ) -> Generator[Result, bool, None]:
     """
     Lint a single file on disk, detecting and generating appropriate configuration.
@@ -223,25 +222,23 @@ def _fixit_file_wrapper(
     path: Path,
     *,
     autofix: bool = False,
-    options: Optional[Options] = None,
-    metrics_hook: Optional[MetricsHook] = None,
-) -> List[Result]:
+    options: Options | None = None,
+    metrics_hook: MetricsHook | None = None,
+) -> list[Result]:
     """
     Wrapper because generators can't be pickled or used directly via multiprocessing
     TODO: replace this with some sort of queue or whatever
     """
-    return list(
-        fixit_file(path, autofix=autofix, options=options, metrics_hook=metrics_hook)
-    )
+    return list(fixit_file(path, autofix=autofix, options=options, metrics_hook=metrics_hook))
 
 
 def fixit_paths(
     paths: Iterable[Path],
     *,
     autofix: bool = False,
-    options: Optional[Options] = None,
+    options: Options | None = None,
     parallel: bool = True,
-    metrics_hook: Optional[MetricsHook] = None,
+    metrics_hook: MetricsHook | None = None,
 ) -> Generator[Result, bool, None]:
     """
     Lint multiple files or directories, recursively expanding each path.
@@ -273,7 +270,7 @@ def fixit_paths(
     if not paths:
         return
 
-    expanded_paths: List[Path] = []
+    expanded_paths: list[Path] = []
     is_stdin = False
     stdin_path = Path("stdin")
     for i, path in enumerate(paths):
@@ -296,9 +293,7 @@ def fixit_paths(
         )
     elif len(expanded_paths) == 1 or not parallel:
         for path in expanded_paths:
-            yield from fixit_file(
-                path, autofix=autofix, options=options, metrics_hook=metrics_hook
-            )
+            yield from fixit_file(path, autofix=autofix, options=options, metrics_hook=metrics_hook)
     else:
         fn = partial(
             _fixit_file_wrapper,

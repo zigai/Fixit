@@ -4,14 +4,12 @@
 # LICENSE file in the root directory of this source tree.
 
 import sys
+from collections.abc import Iterable
 from pathlib import Path
 from subprocess import run
-from typing import Iterable
 
 # Use the copyright header from this file as the benchmark for all files
-EXPECTED_HEADER = "\n".join(
-    line for line in Path(__file__).read_text().splitlines()[:4]
-)
+EXPECTED_HEADER = "\n".join(line for line in Path(__file__).read_text().splitlines()[:4])
 
 
 def tracked_files() -> Iterable[Path]:

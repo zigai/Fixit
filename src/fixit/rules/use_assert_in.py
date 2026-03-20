@@ -19,7 +19,7 @@ class UseAssertIn(LintRule):
 
     MESSAGE: str = (
         "Use assertIn/assertNotIn instead of assertTrue/assertFalse for inclusion check.\n"
-        + "See https://docs.python.org/3/library/unittest.html#unittest.TestCase.assertIn)"
+         "See https://docs.python.org/3/library/unittest.html#unittest.TestCase.assertIn)"
     )
 
     VALID = [
@@ -71,11 +71,7 @@ class UseAssertIn(LintRule):
             node,
             m.Call(
                 func=m.Attribute(value=m.Name("self"), attr=m.Name("assertTrue")),
-                args=[
-                    m.Arg(
-                        m.Comparison(comparisons=[m.ComparisonTarget(operator=m.In())])
-                    )
-                ],
+                args=[m.Arg(m.Comparison(comparisons=[m.ComparisonTarget(operator=m.In())]))],
             ),
         ):
             # self.assertTrue(a in b) -> self.assertIn(a, b)
@@ -84,9 +80,7 @@ class UseAssertIn(LintRule):
                 args=[
                     cst.Arg(ensure_type(node.args[0].value, cst.Comparison).left),
                     cst.Arg(
-                        ensure_type(node.args[0].value, cst.Comparison)
-                        .comparisons[0]
-                        .comparator
+                        ensure_type(node.args[0].value, cst.Comparison).comparisons[0].comparator
                     ),
                 ],
             )
@@ -130,42 +124,32 @@ class UseAssertIn(LintRule):
                 node,
                 m.Call(
                     func=m.Attribute(value=m.Name("self"), attr=m.Name("assertTrue")),
-                    args=[
-                        m.Arg(m.Comparison(comparisons=[m.ComparisonTarget(m.NotIn())]))
-                    ],
+                    args=[m.Arg(m.Comparison(comparisons=[m.ComparisonTarget(m.NotIn())]))],
                 ),
             ):
                 # self.assertTrue(a not in b) -> self.assertNotIn(a, b)
                 matched = True
                 arg1 = cst.Arg(ensure_type(node.args[0].value, cst.Comparison).left)
                 arg2 = cst.Arg(
-                    ensure_type(node.args[0].value, cst.Comparison)
-                    .comparisons[0]
-                    .comparator
+                    ensure_type(node.args[0].value, cst.Comparison).comparisons[0].comparator
                 )
             elif m.matches(
                 node,
                 m.Call(
                     func=m.Attribute(value=m.Name("self"), attr=m.Name("assertFalse")),
-                    args=[
-                        m.Arg(m.Comparison(comparisons=[m.ComparisonTarget(m.In())]))
-                    ],
+                    args=[m.Arg(m.Comparison(comparisons=[m.ComparisonTarget(m.In())]))],
                 ),
             ):
                 # self.assertFalse(a in b) -> self.assertNotIn(a, b)
                 matched = True
                 arg1 = cst.Arg(ensure_type(node.args[0].value, cst.Comparison).left)
                 arg2 = cst.Arg(
-                    ensure_type(node.args[0].value, cst.Comparison)
-                    .comparisons[0]
-                    .comparator
+                    ensure_type(node.args[0].value, cst.Comparison).comparisons[0].comparator
                 )
 
             if matched:
                 new_call = node.with_changes(
-                    func=cst.Attribute(
-                        value=cst.Name("self"), attr=cst.Name("assertNotIn")
-                    ),
+                    func=cst.Attribute(value=cst.Name("self"), attr=cst.Name("assertNotIn")),
                     args=[arg1, arg2],
                 )
                 self.report(node, replacement=new_call)

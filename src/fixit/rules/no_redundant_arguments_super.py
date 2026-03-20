@@ -3,7 +3,6 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import List, Union
 
 import libcst as cst
 import libcst.matchers as m
@@ -18,7 +17,7 @@ class NoRedundantArgumentsSuper(LintRule):
 
     MESSAGE: str = (
         "Do not use arguments when calling super for the parent class. See "
-        + "https://www.python.org/dev/peps/pep-3135/"
+         "https://www.python.org/dev/peps/pep-3135/"
     )
     VALID = [
         Valid(
@@ -117,7 +116,7 @@ class NoRedundantArgumentsSuper(LintRule):
 
     def __init__(self) -> None:
         super().__init__()
-        self.current_classes: List[str] = []
+        self.current_classes: list[str] = []
 
     def visit_ClassDef(self, node: cst.ClassDef) -> None:
         self.current_classes.append(node.name.value)
@@ -138,8 +137,8 @@ class NoRedundantArgumentsSuper(LintRule):
         ):
             self.report(original_node, replacement=original_node.with_changes(args=()))
 
-    def _build_arg_class_matcher(self) -> Union[m.Attribute, m.Name]:
-        matcher: Union[m.Name, m.Attribute] = m.Name(value=self.current_classes[0])
+    def _build_arg_class_matcher(self) -> m.Attribute | m.Name:
+        matcher: m.Name | m.Attribute = m.Name(value=self.current_classes[0])
 
         # For nested classes, we need to match attributes, so we can target
         # `super(Foo.InnerFoo, self)` for example.

@@ -60,9 +60,9 @@ class ComparePrimitivesByEqual(LintRule):
         for target in node.comparisons:
             op, comparator = target.operator, target.comparator
             if isinstance(op, (cst.Is, cst.IsNot)):
-                if (
-                    prev_comparator and isinstance(prev_comparator, self.PRIMITIVES)
-                ) or isinstance(comparator, self.PRIMITIVES):
+                if (prev_comparator and isinstance(prev_comparator, self.PRIMITIVES)) or isinstance(
+                    comparator, self.PRIMITIVES
+                ):
                     self.report(node, replacement=self.replace_operators(node))
                     return
             prev_comparator = comparator

@@ -115,9 +115,7 @@ class VariadicCallableSyntax(LintRule):
             return
         if len(node.slice) == 2 and m.matches(
             node.slice[0],
-            m.SubscriptElement(
-                slice=m.Index(value=m.List(elements=[m.Element(m.Ellipsis())]))
-            ),
+            m.SubscriptElement(slice=m.Index(value=m.List(elements=[m.Element(m.Ellipsis())]))),
         ):
             slices = list(node.slice)
             slices[0] = cst.SubscriptElement(cst.Index(cst.Ellipsis()))

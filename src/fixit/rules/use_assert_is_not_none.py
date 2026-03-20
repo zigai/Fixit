@@ -3,7 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Sequence
+from collections.abc import Sequence
 
 import libcst as cst
 import libcst.matchers as m
@@ -21,7 +21,7 @@ class UseAssertIsNotNone(LintRule):
 
     MESSAGE: str = (
         '"assertTrue" and "assertFalse" are deprecated. Use "assertIsNotNone" and "assertIsNone" instead.\n'
-        + "See https://docs.python.org/3.8/library/unittest.html#deprecated-aliases"
+         "See https://docs.python.org/3.8/library/unittest.html#deprecated-aliases"
     )
 
     VALID = [
@@ -55,9 +55,7 @@ class UseAssertIsNotNone(LintRule):
             "self.assertTrue(f(x) is not None)",
             expected_replacement="self.assertIsNotNone(f(x))",
         ),
-        Invalid(
-            "self.assertTrue(x is None)", expected_replacement="self.assertIsNone(x)"
-        ),
+        Invalid("self.assertTrue(x is None)", expected_replacement="self.assertIsNone(x)"),
         Invalid(
             "self.assertFalse(x is not None)",
             expected_replacement="self.assertIsNone(x)",
@@ -109,9 +107,7 @@ class UseAssertIsNotNone(LintRule):
                                 m.Comparison(comparisons=[match_compare_is_none]),
                                 m.UnaryOperation(
                                     operator=m.Not(),
-                                    expression=m.Comparison(
-                                        comparisons=[match_compare_is_none]
-                                    ),
+                                    expression=m.Comparison(comparisons=[match_compare_is_none]),
                                 ),
                             ),
                             "argument",

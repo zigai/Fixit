@@ -4,13 +4,13 @@
 # LICENSE file in the root directory of this source tree.
 
 import re
-from typing import Callable, cast, List, Optional
+from collections.abc import Callable
+from typing import cast
 
 import libcst as cst
 import libcst.matchers as m
 
 from fixit import Invalid, LintRule, Valid
-
 
 USE_FSTRING_SIMPLE_EXPRESSION_MAX_LENGTH = 30
 
@@ -63,8 +63,7 @@ class EscapeStringQuote(cst.CSTTransformer):
                         raise Exception(
                             f"Failed to escape string:\n  original:{original_node.value}\n  escaped:{escaped_string.value}"
                         )
-                    else:
-                        return escaped_string
+                    return escaped_string
             raise Exception(
                 f"Cannot find a good quote for escaping the SimpleString: {original_node.value}"
             )
@@ -94,8 +93,8 @@ class UseFstring(LintRule):
 
     MESSAGE: str = (
         "Do not use printf style formatting or .format(). "
-        + "Use f-string instead to be more readable and efficient. "
-        + "See https://www.python.org/dev/peps/pep-0498/"
+         "Use f-string instead to be more readable and efficient. "
+         "See https://www.python.org/dev/peps/pep-0498/"
     )
 
     VALID = [
@@ -144,18 +143,16 @@ class UseFstring(LintRule):
         ),
     ]
 
-    _codegen: Optional[Callable[[cst.CSTNode], str]]
+    _codegen: Callable[[cst.CSTNode], str] | None
 
-    def visit_Module(self, node: cst.Module) -> Optional[bool]:
+    def visit_Module(self, node: cst.Module) -> bool | None:
         self._codegen = node.code_for_node
         return super().visit_Module(node)
 
     def visit_Call(self, node: cst.Call) -> None:
         if m.matches(
             node,
-            m.Call(
-                func=m.Attribute(value=m.SimpleString(), attr=m.Name(value="format"))
-            ),
+            m.Call(func=m.Attribute(value=m.SimpleString(), attr=m.Name(value="format"))),
         ):
             self.report(node)
 
@@ -179,7 +176,7 @@ class UseFstring(LintRule):
 
         if extracts:
             expr = cast(cst.BaseExpression, extracts[expr_key])
-            parts: List[cst.BaseFormattedStringContent] = []
+            parts: list[cst.BaseFormattedStringContent] = []
             simple_string = cst.ensure_type(node.left, cst.SimpleString)
             innards = simple_string.raw_value.replace("{", "{{").replace("}", "}}")
             tokens = innards.split("%s")
@@ -187,9 +184,7 @@ class UseFstring(LintRule):
             if len(token) > 0:
                 parts.append(cst.FormattedStringText(value=token))
             expressions = (
-                [elm.value for elm in expr.elements]
-                if isinstance(expr, cst.Tuple)
-                else [expr]
+                [elm.value for elm in expr.elements] if isinstance(expr, cst.Tuple) else [expr]
             )
             escape_transformer = EscapeStringQuote(simple_string.quote)
             i = 1
@@ -216,13 +211,9 @@ class UseFstring(LintRule):
                     parts.append(cst.FormattedStringText(value=token))
                 i += 1
             start = f"f{simple_string.prefix}{simple_string.quote}"
-            replacement = cst.FormattedString(
-                parts=parts, start=start, end=simple_string.quote
-            )
+            replacement = cst.FormattedString(parts=parts, start=start, end=simple_string.quote)
             self.report(node, replacement=replacement)
         elif m.matches(
             node, m.BinaryOperation(left=m.SimpleString(), operator=m.Modulo())
-        ) and isinstance(
-            cst.ensure_type(node.left, cst.SimpleString).evaluated_value, str
-        ):
+        ) and isinstance(cst.ensure_type(node.left, cst.SimpleString).evaluated_value, str):
             self.report(node)

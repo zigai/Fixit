@@ -57,9 +57,7 @@ class RunnerTest(TestCase):
     def test_timing_hook(self) -> None:
         rule = NoopRule()
         hook = MagicMock()
-        for i, _ in enumerate(
-            self.runner.collect_violations([rule], Config(), metrics_hook=hook)
-        ):
+        for i, _ in enumerate(self.runner.collect_violations([rule], Config(), metrics_hook=hook)):
             if i <= 1:
                 # only called at the end
                 hook.assert_not_called()
@@ -106,9 +104,7 @@ class RuleTest(TestCase):
 
         # Since the "pass" code is part of a Module and ExerciseReportRule() visit's the Module
         # 2 violations are collected.
-        module_violation, pass_violation = list(
-            runner.collect_violations(self.rules, Config())
-        )
+        module_violation, pass_violation = list(runner.collect_violations(self.rules, Config()))
         self.assertIsInstance(module_violation.node, cst.Module)
         self.assertIsInstance(pass_violation.node, cst.Pass)
 
@@ -138,9 +134,7 @@ class RuleTest(TestCase):
 
         # Since the "..." code is part of a Module and ExerciseReportRule() visit's the Module
         # 2 violations are collected.
-        module_violation, ellipses_violation = list(
-            runner.collect_violations(self.rules, Config())
-        )
+        module_violation, ellipses_violation = list(runner.collect_violations(self.rules, Config()))
         self.assertIsInstance(module_violation.node, cst.Module)
         self.assertIsInstance(ellipses_violation.node, cst.Ellipsis)
 
@@ -407,9 +401,7 @@ class RuleTest(TestCase):
             content = dedent(code).encode("utf-8")
             with self.subTest(f"test ignore {idx}"):
                 runner = LintRunner(Path("fake.py"), content)
-                violations = list(
-                    runner.collect_violations([ExerciseReportRule()], Config())
-                )
+                violations = list(runner.collect_violations([ExerciseReportRule()], Config()))
 
                 if message and position:
                     self.assertIn(len(violations), (1, 2))

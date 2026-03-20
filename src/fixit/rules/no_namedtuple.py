@@ -3,10 +3,10 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import List, Optional, Sequence, Tuple
+from collections.abc import Sequence
 
 import libcst as cst
-from libcst import ensure_type, MaybeSentinel, parse_expression
+from libcst import MaybeSentinel, ensure_type, parse_expression
 from libcst.metadata import QualifiedName, QualifiedNameProvider, QualifiedNameSource
 
 from fixit import Invalid, LintRule, Valid
@@ -20,9 +20,7 @@ class NoNamedTuple(LintRule):
     ``@dataclass`` is faster at reading an object's nested properties and executing its methods. (`benchmark <https://medium.com/@jacktator/dataclass-vs-namedtuple-vs-object-for-performance-optimization-in-python-691e234253b9>`_)
     """
 
-    MESSAGE: str = (
-        "Instead of NamedTuple, consider using the @dataclass decorator from dataclasses instead for simplicity, efficiency and consistency."
-    )
+    MESSAGE: str = "Instead of NamedTuple, consider using the @dataclass decorator from dataclasses instead for simplicity, efficiency and consistency."
     METADATA_DEPENDENCIES = (QualifiedNameProvider,)
 
     VALID = [
@@ -177,21 +175,18 @@ class NoNamedTuple(LintRule):
                 lpar=MaybeSentinel.DEFAULT,
                 rpar=MaybeSentinel.DEFAULT,
                 bases=new_bases,
-                decorators=list(original_node.decorators)
-                + [cst.Decorator(decorator=call)],
+                decorators=list(original_node.decorators) + [cst.Decorator(decorator=call)],
             )
             self.report(original_node, replacement=replacement)
 
     def partition_bases(
         self, original_bases: Sequence[cst.Arg]
-    ) -> Tuple[Optional[cst.Arg], List[cst.Arg]]:
+    ) -> tuple[cst.Arg | None, list[cst.Arg]]:
         # Returns a tuple of NamedTuple base object if it exists, and a list of non-NamedTuple bases
-        namedtuple_base: Optional[cst.Arg] = None
-        new_bases: List[cst.Arg] = []
+        namedtuple_base: cst.Arg | None = None
+        new_bases: list[cst.Arg] = []
         for base_class in original_bases:
-            if QualifiedNameProvider.has_name(
-                self, base_class.value, self.qualified_namedtuple
-            ):
+            if QualifiedNameProvider.has_name(self, base_class.value, self.qualified_namedtuple):
                 namedtuple_base = base_class
             else:
                 new_bases.append(base_class)

@@ -3,7 +3,6 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Set
 
 import libcst as cst
 import libcst.matchers as m
@@ -20,7 +19,9 @@ class NoStringTypeAnnotation(LintRule):
     and thus forward references no longer need to use string annotation style.
     """
 
-    MESSAGE = "String type hints are no longer necessary in Python, use the type identifier directly."
+    MESSAGE = (
+        "String type hints are no longer necessary in Python, use the type identifier directly."
+    )
 
     VALID = [
         # Usage of a Class for instantiation and typing.
@@ -247,8 +248,8 @@ class NoStringTypeAnnotation(LintRule):
 
     def __init__(self) -> None:
         super().__init__()
-        self.in_annotation: Set[cst.Annotation] = set()
-        self.in_literal: Set[cst.Subscript] = set()
+        self.in_annotation: set[cst.Annotation] = set()
+        self.in_literal: set[cst.Subscript] = set()
         self.has_future_annotations_import = False
 
     def visit_ImportFrom(self, node: cst.ImportFrom) -> None:

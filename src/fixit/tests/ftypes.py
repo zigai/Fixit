@@ -3,7 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Any, cast, Optional, Set
+from typing import Any, Optional, Set, cast
 from unittest import TestCase
 
 from .. import ftypes
@@ -25,9 +25,7 @@ class TypesTest(TestCase):
                 self.assertIsNotNone(match, "value did not match lint-ignore regex")
                 if match:
                     _style, names = match.groups()
-                    self.assertEqual(
-                        expected_names, names, "regex captured unexpected names"
-                    )
+                    self.assertEqual(expected_names, names, "regex captured unexpected names")
 
         for value in (
             "# something else",
@@ -73,9 +71,7 @@ class TypesTest(TestCase):
                     valid.add(rule)
 
                 else:
-                    self.assertIsNone(
-                        match, f"{value!r} should not match QualifiedRule"
-                    )
+                    self.assertIsNone(match, f"{value!r} should not match QualifiedRule")
 
         self.assertSetEqual(
             {

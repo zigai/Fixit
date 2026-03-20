@@ -3,21 +3,19 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Optional, Union
 
 import libcst as cst
 import libcst.matchers as m
 
 from fixit import Invalid, LintRule, Valid
 
-
 UNNECESSARY_GENERATOR: str = (
     "It's unnecessary to use {func} around a generator expression, since "
-    + "there are equivalent comprehensions for this type."
+     "there are equivalent comprehensions for this type."
 )
 UNNECESSARY_LIST_COMPREHENSION: str = (
     "It's unnecessary to use a list comprehension inside a call to {func} "
-    + "since there are equivalent comprehensions for this type"
+     "since there are equivalent comprehensions for this type"
 )
 
 
@@ -106,7 +104,7 @@ class RewriteToComprehension(LintRule):
         ):
             call_name = cst.ensure_type(node.func, cst.Name).value
 
-            exp: Union[cst.GeneratorExp, cst.ListComp]
+            exp: cst.GeneratorExp | cst.ListComp
             if m.matches(node.args[0].value, m.GeneratorExp()):
                 exp = cst.ensure_type(node.args[0].value, cst.GeneratorExp)
                 message_formatter = UNNECESSARY_GENERATOR
@@ -114,15 +112,11 @@ class RewriteToComprehension(LintRule):
                 exp = cst.ensure_type(node.args[0].value, cst.ListComp)
                 message_formatter = UNNECESSARY_LIST_COMPREHENSION
 
-            replacement: Optional[Union[cst.Call, cst.BaseComp]] = None
+            replacement: cst.Call | cst.BaseComp | None = None
             if call_name == "list":
-                replacement = node.deep_replace(
-                    node, cst.ListComp(elt=exp.elt, for_in=exp.for_in)
-                )
+                replacement = node.deep_replace(node, cst.ListComp(elt=exp.elt, for_in=exp.for_in))
             elif call_name == "set":
-                replacement = node.deep_replace(
-                    node, cst.SetComp(elt=exp.elt, for_in=exp.for_in)
-                )
+                replacement = node.deep_replace(node, cst.SetComp(elt=exp.elt, for_in=exp.for_in))
             elif call_name == "dict":
                 elt = exp.elt
                 key = None
@@ -144,6 +138,4 @@ class RewriteToComprehension(LintRule):
                     cst.DictComp(key=key, value=value, for_in=exp.for_in),
                 )
 
-            self.report(
-                node, message_formatter.format(func=call_name), replacement=replacement
-            )
+            self.report(node, message_formatter.format(func=call_name), replacement=replacement)

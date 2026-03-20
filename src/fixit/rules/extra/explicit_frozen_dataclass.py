@@ -22,8 +22,8 @@ class ExplicitFrozenDataclass(LintRule):
 
     MESSAGE: str = (
         "When using dataclasses, explicitly specify a frozen keyword argument. "
-        + "Example: `@dataclass(frozen=True)` or `@dataclass(frozen=False)`. "
-        + "Docs: https://docs.python.org/3/library/dataclasses.html"
+         "Example: `@dataclass(frozen=True)` or `@dataclass(frozen=False)`. "
+         "Docs: https://docs.python.org/3/library/dataclasses.html"
     )
     METADATA_DEPENDENCIES = (QualifiedNameProvider,)
     VALID = [
@@ -231,9 +231,7 @@ class ExplicitFrozenDataclass(LintRule):
             if QualifiedNameProvider.has_name(
                 self,
                 decorator,
-                QualifiedName(
-                    name="dataclasses.dataclass", source=QualifiedNameSource.IMPORT
-                ),
+                QualifiedName(name="dataclasses.dataclass", source=QualifiedNameSource.IMPORT),
             ):
                 if isinstance(decorator, cst.Call):
                     func = decorator.func

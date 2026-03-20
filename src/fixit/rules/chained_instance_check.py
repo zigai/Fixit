@@ -3,7 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Dict, Iterator, List, Set, Tuple
+from collections.abc import Iterator
 
 import libcst as cst
 import libcst.matchers as m
@@ -11,10 +11,7 @@ from libcst.metadata import QualifiedName, QualifiedNameProvider, QualifiedNameS
 
 from fixit import Invalid, LintRule, Valid
 
-
-_ISINSTANCE = QualifiedName(
-    name="builtins.isinstance", source=QualifiedNameSource.BUILTIN
-)
+_ISINSTANCE = QualifiedName(name="builtins.isinstance", source=QualifiedNameSource.BUILTIN)
 
 
 class CollapseIsinstanceChecks(LintRule):
@@ -28,8 +25,8 @@ class CollapseIsinstanceChecks(LintRule):
 
     MESSAGE: str = (
         "Multiple isinstance calls with the same target but "
-        + "different types can be collapsed into a single call "
-        + "with a tuple of types."
+         "different types can be collapsed into a single call "
+         "with a tuple of types."
     )
 
     METADATA_DEPENDENCIES = (QualifiedNameProvider,)
@@ -80,22 +77,22 @@ class CollapseIsinstanceChecks(LintRule):
         ),
         Invalid(
             "isinstance(x, a) or isinstance(x, b) or isinstance(y, c) or isinstance(y, d) "
-            + "or isinstance(z, e)",
+             "or isinstance(z, e)",
             expected_replacement="isinstance(x, (a, b)) or isinstance(y, (c, d)) or isinstance(z, e)",
         ),
         Invalid(
             "isinstance(x, a) or isinstance(x, b) or isinstance(y, c) or isinstance(y, d) "
-            + "or isinstance(z, e) or isinstance(q, f) or isinstance(q, g) or isinstance(q, h)",
+             "or isinstance(z, e) or isinstance(q, f) or isinstance(q, g) or isinstance(q, h)",
             expected_replacement=(
                 "isinstance(x, (a, b)) or isinstance(y, (c, d)) or isinstance(z, e)"
-                + " or isinstance(q, (f, g, h))"
+                 " or isinstance(q, (f, g, h))"
             ),
         ),
     ]
 
     def __init__(self) -> None:
         super().__init__()
-        self.seen_boolean_operations: Set[cst.BooleanOperation] = set()
+        self.seen_boolean_operations: set[cst.BooleanOperation] = set()
 
     def visit_BooleanOperation(self, node: cst.BooleanOperation) -> None:
         if node in self.seen_boolean_operations:
@@ -138,17 +135,13 @@ class CollapseIsinstanceChecks(LintRule):
             yield node
 
     def collect_targets(
-        self, stack: Tuple[cst.BaseExpression, ...]
-    ) -> Tuple[
-        List[cst.BaseExpression], Dict[cst.BaseExpression, List[cst.BaseExpression]]
-    ]:
-        targets: Dict[cst.BaseExpression, List[cst.BaseExpression]] = {}
+        self, stack: tuple[cst.BaseExpression, ...]
+    ) -> tuple[list[cst.BaseExpression], dict[cst.BaseExpression, list[cst.BaseExpression]]]:
+        targets: dict[cst.BaseExpression, list[cst.BaseExpression]] = {}
         operands = []
 
         for operand in stack:
-            if m.matches(
-                operand, m.Call(func=m.DoNotCare(), args=[m.Arg(), m.Arg(~m.Tuple())])
-            ):
+            if m.matches(operand, m.Call(func=m.DoNotCare(), args=[m.Arg(), m.Arg(~m.Tuple())])):
                 call = cst.ensure_type(operand, cst.Call)
                 if not QualifiedNameProvider.has_name(self, call, _ISINSTANCE):
                     operands.append(operand)

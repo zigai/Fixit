@@ -10,13 +10,12 @@ NOTE: be sure to update docs/guide/configuration.rst to include any new formatte
 """
 
 from pathlib import Path
-from typing import Dict, Optional, Type
 
 from libcst import Module
 
 from .ftypes import Config, FileContent
 
-FORMAT_STYLES: Dict[Optional[str], Type["Formatter"]] = {}
+FORMAT_STYLES: dict[str | None, type["Formatter"]] = {}
 
 
 class Formatter:
@@ -48,9 +47,7 @@ class BlackFormatter(Formatter):
         import ufmt.util
 
         mode = ufmt.util.make_black_config(path)
-        content = black.format_file_contents(
-            module.bytes.decode("utf-8"), fast=False, mode=mode
-        )
+        content = black.format_file_contents(module.bytes.decode("utf-8"), fast=False, mode=mode)
         return content.encode("utf-8")
 
 

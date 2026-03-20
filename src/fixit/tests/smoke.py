@@ -11,7 +11,6 @@ from textwrap import dedent
 from unittest import TestCase
 
 import pygls.uris as Uri
-
 from click.testing import CliRunner
 
 from fixit import __version__
@@ -62,9 +61,7 @@ class SmokeTest(TestCase):
 
             with self.subTest("linting"):
                 path.write_text(content)
-                result = self.runner.invoke(
-                    main, ["lint", path.as_posix()], catch_exceptions=False
-                )
+                result = self.runner.invoke(main, ["lint", path.as_posix()], catch_exceptions=False)
 
                 self.assertNotEqual(result.output, "")
                 self.assertNotEqual(result.exit_code, 0)
@@ -88,9 +85,7 @@ class SmokeTest(TestCase):
                     result.output,
                     r"file\.py@\d+:\d+ NoRedundantFString: .+ \(has autofix\)",
                 )
-                self.assertEqual(
-                    expected_fix, path.read_text(), "unexpected file output"
-                )
+                self.assertEqual(expected_fix, path.read_text(), "unexpected file output")
 
             with self.subTest("fixing with formatting"):
                 (tdp / "pyproject.toml").write_text("[tool.fixit]\nformatter='ufmt'\n")
@@ -108,9 +103,7 @@ class SmokeTest(TestCase):
                     result.output,
                     r"file\.py@\d+:\d+ NoRedundantFString: .+ \(has autofix\)",
                 )
-                self.assertEqual(
-                    expected_format, path.read_text(), "unexpected file output"
-                )
+                self.assertEqual(expected_format, path.read_text(), "unexpected file output")
 
             with self.subTest("linting via stdin"):
                 result = self.runner.invoke(
@@ -142,7 +135,9 @@ class SmokeTest(TestCase):
                 path.write_text(content)
                 uri = Uri.from_fs_path(path.as_posix())
 
-                initialize = '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"capabilities":{}}}'
+                initialize = (
+                    '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"capabilities":{}}}'
+                )
 
                 did_open_template = '{{"jsonrpc":"2.0","id":1,"method":"textDocument/didOpen","params":{{"textDocument":{{"uri":{uri},"languageId":"python","version":0,"text":{content}}}}}}}'
                 did_open = did_open_template.format(
@@ -295,40 +290,34 @@ class SmokeTest(TestCase):
                     value = f"hello world"
             """
         )
-        with self.subTest("lint"):
-            with TemporaryDirectory() as td:
-                tdp = Path(td).resolve()
-                path = tdp / "file.py"
+        with self.subTest("lint"), TemporaryDirectory() as td:
+            tdp = Path(td).resolve()
+            path = tdp / "file.py"
 
-                (tdp / "pyproject.toml").write_text(
-                    "[tool.fixit]\ndisable=['fixit.rules']\n"
-                )
+            (tdp / "pyproject.toml").write_text("[tool.fixit]\ndisable=['fixit.rules']\n")
 
-                path.write_text(content)
-                result = self.runner.invoke(
-                    main,
-                    ["lint", path.as_posix()],
-                    catch_exceptions=False,
-                )
+            path.write_text(content)
+            result = self.runner.invoke(
+                main,
+                ["lint", path.as_posix()],
+                catch_exceptions=False,
+            )
 
-                self.assertEqual(result.output, "")
-                self.assertEqual(result.exit_code, 0)
+            self.assertEqual(result.output, "")
+            self.assertEqual(result.exit_code, 0)
 
-        with self.subTest("fix"):
-            with TemporaryDirectory() as td:
-                tdp = Path(td).resolve()
-                path = tdp / "file.py"
+        with self.subTest("fix"), TemporaryDirectory() as td:
+            tdp = Path(td).resolve()
+            path = tdp / "file.py"
 
-                (tdp / "pyproject.toml").write_text(
-                    "[tool.fixit]\ndisable=['fixit.rules']\n"
-                )
+            (tdp / "pyproject.toml").write_text("[tool.fixit]\ndisable=['fixit.rules']\n")
 
-                path.write_text(content)
-                result = self.runner.invoke(
-                    main,
-                    ["fix", "--automatic", path.as_posix()],
-                    catch_exceptions=False,
-                )
+            path.write_text(content)
+            result = self.runner.invoke(
+                main,
+                ["fix", "--automatic", path.as_posix()],
+                catch_exceptions=False,
+            )
 
-                self.assertEqual(result.output, "")
-                self.assertEqual(result.exit_code, 0)
+            self.assertEqual(result.output, "")
+            self.assertEqual(result.exit_code, 0)

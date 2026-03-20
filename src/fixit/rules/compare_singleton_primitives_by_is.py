@@ -3,7 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import cast, FrozenSet, Set, Union
+from typing import cast
 
 import libcst as cst
 from libcst.metadata import QualifiedName, QualifiedNameProvider, QualifiedNameSource
@@ -20,7 +20,7 @@ class CompareSingletonPrimitivesByIs(LintRule):
 
     MESSAGE: str = (
         "Comparisons to singleton primitives should not be done with == or !=, as they check equality rather than identity."
-        + " Use `is` or `is not` instead."
+         " Use `is` or `is not` instead."
     )
     METADATA_DEPENDENCIES = (QualifiedNameProvider,)
     VALID = [
@@ -71,7 +71,7 @@ class CompareSingletonPrimitivesByIs(LintRule):
         ),
     ]
 
-    QUALIFIED_SINGLETON_PRIMITIVES: FrozenSet[QualifiedName] = frozenset(
+    QUALIFIED_SINGLETON_PRIMITIVES: frozenset[QualifiedName] = frozenset(
         {
             QualifiedName(name=f"builtins.{name}", source=QualifiedNameSource.BUILTIN)
             for name in ("True", "False", "None")
@@ -79,9 +79,7 @@ class CompareSingletonPrimitivesByIs(LintRule):
     )
 
     def is_singleton(self, node: cst.BaseExpression) -> bool:
-        qual_name = cast(
-            Set[QualifiedName], self.get_metadata(QualifiedNameProvider, node, set())
-        )
+        qual_name = cast(set[QualifiedName], self.get_metadata(QualifiedNameProvider, node, set()))
         return bool(
             isinstance(node, cst.Name)
             and qual_name
@@ -108,13 +106,11 @@ class CompareSingletonPrimitivesByIs(LintRule):
             left_comp = right_comp
 
         if needs_report:
-            self.report(
-                node, replacement=node.with_changes(comparisons=altered_comparisons)
-            )
+            self.report(node, replacement=node.with_changes(comparisons=altered_comparisons))
 
     def alter_operator(
-        self, original_op: Union[cst.Equal, cst.NotEqual]
-    ) -> Union[cst.Is, cst.IsNot]:
+        self, original_op: cst.Equal | cst.NotEqual
+    ) -> cst.Is | cst.IsNot:
         return (
             cst.IsNot(
                 whitespace_before=original_op.whitespace_before,

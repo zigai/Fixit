@@ -3,7 +3,6 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Optional
 
 import libcst as cst
 import libcst.matchers as m
@@ -18,7 +17,7 @@ class NoStaticIfCondition(LintRule):
 
     MESSAGE: str = (
         "Your if condition appears to evaluate to a static value (e.g. `or True`, `and False`). "
-        + "Please double check this logic and if it is actually temporary debug code."
+         "Please double check this logic and if it is actually temporary debug code."
     )
     VALID = [
         Valid(
@@ -115,7 +114,7 @@ class NoStaticIfCondition(LintRule):
     ]
 
     @classmethod
-    def _extract_static_bool(cls, node: cst.BaseExpression) -> Optional[bool]:
+    def _extract_static_bool(cls, node: cst.BaseExpression) -> bool | None:
         if m.matches(node, m.Call()):
             # cannot reason about function calls
             return None

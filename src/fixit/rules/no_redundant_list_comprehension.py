@@ -8,10 +8,9 @@ import libcst.matchers as m
 
 from fixit import Invalid, LintRule, Valid
 
-
 UNNECESSARY_LIST_COMPREHENSION: str = (
     "Unnecessary list comprehension - {func} can take a generator, and is likely "
-    + "to short-circuit, so constructing a list is probably wasteful."
+     "to short-circuit, so constructing a list is probably wasteful."
 )
 
 
@@ -47,9 +46,7 @@ class NoRedundantListComprehension(LintRule):
         # about, because none of those functions short-circuit.
         if m.matches(
             node,
-            m.Call(
-                func=m.Name("all") | m.Name("any"), args=[m.Arg(value=m.ListComp())]
-            ),
+            m.Call(func=m.Name("all") | m.Name("any"), args=[m.Arg(value=m.ListComp())]),
         ):
             list_comp = cst.ensure_type(node.args[0].value, cst.ListComp)
             self.report(
@@ -59,8 +56,6 @@ class NoRedundantListComprehension(LintRule):
                 ),
                 replacement=node.deep_replace(
                     list_comp,
-                    cst.GeneratorExp(
-                        elt=list_comp.elt, for_in=list_comp.for_in, lpar=[], rpar=[]
-                    ),
+                    cst.GeneratorExp(elt=list_comp.elt, for_in=list_comp.for_in, lpar=[], rpar=[]),
                 ),
             )

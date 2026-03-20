@@ -3,7 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Dict, Sequence, Tuple
+from collections.abc import Sequence
 
 import libcst
 from libcst._nodes.statement import ImportFrom
@@ -20,7 +20,7 @@ class FixitDeprecatedImport(LintRule):
     MESSAGE = "Fixit deprecated import {old_name}, use {new_name} instead"
     METADATA_DEPENDENCIES = (FullyQualifiedNameProvider,)
 
-    DEPRECATIONS: Dict[str, Tuple[str, str]] = {
+    DEPRECATIONS: dict[str, tuple[str, str]] = {
         "fixit.CstLintRule": ("CstLintRule", "LintRule"),
         "fixit.CSTLintRule": ("CSTLintRule", "LintRule"),
         "fixit.InvalidTestCase": ("InvalidTestCase", "Invalid"),
@@ -96,9 +96,7 @@ class FixitDeprecatedImport(LintRule):
 
                 if fqname in self.DEPRECATIONS:
                     old_name, new_name = self.DEPRECATIONS[fqname]
-                    rep = alias.with_changes(
-                        name=alias.name.with_changes(value=new_name)
-                    )
+                    rep = alias.with_changes(name=alias.name.with_changes(value=new_name))
 
                     # don't keep 'Name as Name'
                     if (

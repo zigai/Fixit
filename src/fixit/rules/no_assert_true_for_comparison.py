@@ -3,7 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Sequence
+from collections.abc import Sequence
 
 import libcst as cst
 import libcst.matchers as m
@@ -21,7 +21,7 @@ class NoAssertTrueForComparisons(LintRule):
 
     MESSAGE: str = (
         '"assertTrue" does not compare its arguments, use "assertEqual" or other '
-        + "appropriate functions."
+         "appropriate functions."
     )
 
     VALID = [

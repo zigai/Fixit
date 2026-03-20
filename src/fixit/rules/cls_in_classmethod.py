@@ -3,7 +3,6 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import List, Union
 
 import libcst as cst
 from libcst.metadata import (
@@ -16,13 +15,12 @@ from libcst.metadata import (
 
 from fixit import Invalid, LintRule, Valid
 
-
 CLS = "cls"
 
 
 class _RenameTransformer(cst.CSTTransformer):
     def __init__(
-        self, names: List[Union[cst.Name, cst.BaseString, cst.Attribute]], new_name: str
+        self, names: list[cst.Name | cst.BaseString | cst.Attribute], new_name: str
     ) -> None:
         self.names = names
         self.new_name = new_name
@@ -225,24 +223,18 @@ class UseClsInClassmethod(LintRule):
             QualifiedNameProvider.has_name(
                 self,
                 decorator.decorator,
-                QualifiedName(
-                    name="builtins.classmethod", source=QualifiedNameSource.BUILTIN
-                ),
+                QualifiedName(name="builtins.classmethod", source=QualifiedNameSource.BUILTIN),
             )
             for decorator in node.decorators
         ):
             return  # If it's not a @classmethod, we are not interested.
 
-        repl: Union[
-            cst.CSTNode, cst.RemovalSentinel, cst.FlattenSentinel[cst.FunctionDef]
-        ]
+        repl: cst.CSTNode | cst.RemovalSentinel | cst.FlattenSentinel[cst.FunctionDef]
         if not node.params.params:
             # No params, but there must be the 'cls' param.
             # Note that pyre[47] already catches this, but we also generate
             # an autofix, so it still makes sense for us to report it here.
-            new_params = node.params.with_changes(
-                params=(cst.Param(name=cst.Name(value=CLS)),)
-            )
+            new_params = node.params.with_changes(params=(cst.Param(name=cst.Name(value=CLS)),))
             repl = node.with_changes(params=new_params)
             self.report(node, replacement=repl)
             return
@@ -273,7 +265,7 @@ class UseClsInClassmethod(LintRule):
             self.report(node)
             return
 
-        refs: List[Union[cst.Name, cst.Attribute, cst.BaseString]] = []
+        refs: list[cst.Name | cst.Attribute | cst.BaseString] = []
         assignments = scope[p0_name.value]
         for a in assignments:
             if isinstance(a, Assignment):

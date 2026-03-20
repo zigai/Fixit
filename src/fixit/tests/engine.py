@@ -9,11 +9,11 @@ from unittest import TestCase
 
 from libcst import (
     Call,
-    ensure_type,
     Expr,
-    parse_module,
     SimpleStatementLine,
     SimpleString,
+    ensure_type,
+    parse_module,
 )
 from libcst.metadata import CodePosition, CodeRange
 
@@ -32,9 +32,7 @@ class EngineTest(TestCase):
         path = Path("foo.py")
         module = parse_module(src)
         node = ensure_type(
-            ensure_type(
-                ensure_type(module.body[-1], SimpleStatementLine).body[0], Expr
-            ).value,
+            ensure_type(ensure_type(module.body[-1], SimpleStatementLine).body[0], Expr).value,
             Call,
         ).args[0]
         repl = node.with_changes(value=SimpleString('"goodnight moon"'))

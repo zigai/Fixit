@@ -176,9 +176,7 @@ class ConfigTest(TestCase):
                 "inner partial",
                 [innerB, outer, top],
                 [
-                    RawConfig(
-                        outer, {"enable": [".localrules"], "disable": ["fixit.rules"]}
-                    ),
+                    RawConfig(outer, {"enable": [".localrules"], "disable": ["fixit.rules"]}),
                     RawConfig(
                         top,
                         {
@@ -192,9 +190,7 @@ class ConfigTest(TestCase):
                                     "path": "other",
                                     "enable": ["other.stuff", ".globalrules"],
                                     "disable": ["fixit.rules"],
-                                    "options": {
-                                        "other.stuff.Whatever": {"key": "value"}
-                                    },
+                                    "options": {"other.stuff.Whatever": {"key": "value"}},
                                     "python-version": "3.10",
                                 },
                             ],
@@ -206,9 +202,7 @@ class ConfigTest(TestCase):
                 "outer",
                 [outer, top],
                 [
-                    RawConfig(
-                        outer, {"enable": [".localrules"], "disable": ["fixit.rules"]}
-                    ),
+                    RawConfig(outer, {"enable": [".localrules"], "disable": ["fixit.rules"]}),
                     RawConfig(
                         top,
                         {
@@ -222,9 +216,7 @@ class ConfigTest(TestCase):
                                     "path": "other",
                                     "enable": ["other.stuff", ".globalrules"],
                                     "disable": ["fixit.rules"],
-                                    "options": {
-                                        "other.stuff.Whatever": {"key": "value"}
-                                    },
+                                    "options": {"other.stuff.Whatever": {"key": "value"}},
                                     "python-version": "3.10",
                                 },
                             ],
@@ -249,9 +241,7 @@ class ConfigTest(TestCase):
                                     "path": "other",
                                     "enable": ["other.stuff", ".globalrules"],
                                     "disable": ["fixit.rules"],
-                                    "options": {
-                                        "other.stuff.Whatever": {"key": "value"}
-                                    },
+                                    "options": {"other.stuff.Whatever": {"key": "value"}},
                                     "python-version": "3.10",
                                 },
                             ],
@@ -619,21 +609,15 @@ class ConfigTest(TestCase):
             output_format_regex = r".*f_string\.py:\d+:\d+ UseFstring: .+"
 
             with self.subTest("linting vscode"):
-                result = runner.invoke(
-                    main, ["lint", filepath.as_posix()], catch_exceptions=False
-                )
+                result = runner.invoke(main, ["lint", filepath.as_posix()], catch_exceptions=False)
                 self.assertRegex(result.output, output_format_regex)
 
             with self.subTest("fixing vscode"):
-                result = runner.invoke(
-                    main, ["fix", filepath.as_posix()], catch_exceptions=False
-                )
+                result = runner.invoke(main, ["fix", filepath.as_posix()], catch_exceptions=False)
                 self.assertRegex(result.output, output_format_regex)
 
             custom_output_format_regex = r".*f_string\.py|\d+|\d+ UseFstring: .+"
-            custom_output_format = (
-                "{path}|{start_line}|{start_col} {rule_name}: {message}"
-            )
+            custom_output_format = "{path}|{start_line}|{start_col} {rule_name}: {message}"
             (self.tdp / "pyproject.toml").write_text(
                 dedent(
                     f"""
@@ -645,15 +629,11 @@ class ConfigTest(TestCase):
             )
 
             with self.subTest("linting custom"):
-                result = runner.invoke(
-                    main, ["lint", filepath.as_posix()], catch_exceptions=False
-                )
+                result = runner.invoke(main, ["lint", filepath.as_posix()], catch_exceptions=False)
                 self.assertRegex(result.output, custom_output_format_regex)
 
             with self.subTest("fixing custom"):
-                result = runner.invoke(
-                    main, ["fix", filepath.as_posix()], catch_exceptions=False
-                )
+                result = runner.invoke(main, ["fix", filepath.as_posix()], catch_exceptions=False)
                 self.assertRegex(result.output, custom_output_format_regex)
 
             with self.subTest("override output-format"):
@@ -675,26 +655,23 @@ class ConfigTest(TestCase):
                     ],
                     catch_exceptions=True,
                 )
-                self.assertRegex(
-                    result.output, r"file .*f_string\.py line \d+ rule UseFstring"
-                )
+                self.assertRegex(result.output, r"file .*f_string\.py line \d+ rule UseFstring")
 
     def test_validate_config(self) -> None:
-        with self.subTest("validate-config valid"):
-            with TemporaryDirectory() as td:
-                tdp = Path(td).resolve()
-                path = tdp / ".fixit.toml"
-                path.write_text(
-                    """
+        with self.subTest("validate-config valid"), TemporaryDirectory() as td:
+            tdp = Path(td).resolve()
+            path = tdp / ".fixit.toml"
+            path.write_text(
+                """
                     [tool.fixit]
                     disable = ["fixit.rules"]
                     root = true
                     """
-                )
+            )
 
-                results = config.validate_config(path)
+            results = config.validate_config(path)
 
-                self.assertEqual(results, [])
+            self.assertEqual(results, [])
 
     def test_validate_config_with_override(self) -> None:
         with self.subTest("validate-config valid with overrides"):

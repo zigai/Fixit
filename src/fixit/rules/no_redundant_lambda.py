@@ -9,10 +9,8 @@ from libcst.helpers import get_full_name_for_node
 
 from fixit import Invalid, LintRule, Valid
 
-
 UNNECESSARY_LAMBDA: str = (
-    "The lambda that is wrapping {function} is redundant. "
-    "It can unwrapped safely and used purely."
+    "The lambda that is wrapping {function} is redundant. It can unwrapped safely and used purely."
 )
 
 
@@ -63,9 +61,7 @@ class NoRedundantLambda(LintRule):
                 params=m.MatchIfTrue(self._is_simple_parameter_spec),
                 body=m.Call(
                     args=[
-                        m.Arg(
-                            value=m.Name(value=param.name.value), star="", keyword=None
-                        )
+                        m.Arg(value=m.Name(value=param.name.value), star="", keyword=None)
                         for param in node.params.params
                     ]
                 ),

@@ -3,13 +3,12 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import List, Union
+from typing import Union
 
 import libcst as cst
 import libcst.matchers as m
 
 from fixit import Invalid, LintRule, Valid
-
 
 LineType = Union[cst.BaseSmallStatement, cst.BaseStatement]
 
@@ -73,9 +72,7 @@ class SortedAttributes(LintRule):
            """
         )
     ]
-    MESSAGE: str = (
-        "It appears you are using the @sorted-attributes directive and the class variables are unsorted. See the lint autofix suggestion."
-    )
+    MESSAGE: str = "It appears you are using the @sorted-attributes directive and the class variables are unsorted. See the lint autofix suggestion."
 
     def visit_ClassDef(self, node: cst.ClassDef) -> None:
         doc_string = node.get_docstring()
@@ -83,21 +80,15 @@ class SortedAttributes(LintRule):
             return
 
         found_any_assign: bool = False
-        pre_assign_lines: List[LineType] = []
-        assign_lines: List[LineType] = []
-        post_assign_lines: List[LineType] = []
+        pre_assign_lines: list[LineType] = []
+        assign_lines: list[LineType] = []
+        post_assign_lines: list[LineType] = []
 
         def _add_unmatched_line(line: LineType) -> None:
-            (
-                post_assign_lines.append(line)
-                if found_any_assign
-                else pre_assign_lines.append(line)
-            )
+            (post_assign_lines.append(line) if found_any_assign else pre_assign_lines.append(line))
 
         for line in node.body.body:
-            if m.matches(
-                line, m.SimpleStatementLine(body=[m.Assign(targets=[m.AssignTarget()])])
-            ):
+            if m.matches(line, m.SimpleStatementLine(body=[m.Assign(targets=[m.AssignTarget()])])):
                 found_any_assign = True
                 assign_lines.append(line)
             else:
@@ -105,7 +96,8 @@ class SortedAttributes(LintRule):
                 continue
 
         sorted_assign_lines = sorted(
-            assign_lines, key=lambda line: line.body[0].targets[0].target.value  # type: ignore
+            assign_lines,
+            key=lambda line: line.body[0].targets[0].target.value,  # type: ignore
         )
         if sorted_assign_lines == assign_lines:
             return

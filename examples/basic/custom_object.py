@@ -4,24 +4,25 @@
 # LICENSE file in the root directory of this source tree.
 
 # Triggers built-in lint rules
-class Foo(object):
+class Foo:
     def bar(self, value: str) -> str:
-        return "value is {}".format(value)
+        return f"value is {value}"
+
 
 # lint-fixme: SomethingUnrelated
-class Bar(object):
+class Bar:
     pass
 
 
 # lint-ignore
-class Phi(object):
+class Phi:
     pass
 
 
 # lint-fixme: NoInheritFromObject
-class Rho(object):
+class Rho:
     pass
 
 
-class Zeta(object):  # lint-ignore NoInheritFromObject
+class Zeta:  # lint-ignore NoInheritFromObject
     pass
