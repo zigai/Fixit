@@ -103,7 +103,7 @@ class RewriteToLiteral(LintRule):
                 message_formatter = UNNCESSARY_CALL
             else:
                 arg = exp.args[0].value
-                if isinstance(arg, cst.List) or isinstance(arg, cst.Tuple):
+                if isinstance(arg, (cst.List, cst.Tuple)):
                     elements = arg.elements
                 else:
                     raise ValueError(f"Unexpected {type(arg)}")
