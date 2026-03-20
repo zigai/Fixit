@@ -177,7 +177,7 @@ class NoNamedTuple(LintRule):
                 bases=new_bases,
                 decorators=[*list(original_node.decorators), cst.Decorator(decorator=call)],
             )
-            self.report(original_node, replacement=replacement)
+            self.report(original_node, self.MESSAGE, replacement=replacement)
 
     def partition_bases(
         self, original_bases: Sequence[cst.Arg]

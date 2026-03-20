@@ -114,4 +114,4 @@ class NoAssertTrueForComparisons(LintRule):
                     value="assertEqual",
                 )
 
-            self.report(node, replacement=new_call)
+            self.report(node, self.MESSAGE, replacement=new_call)

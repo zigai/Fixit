@@ -23,23 +23,13 @@ from .ftypes import (
 )
 from .rule import LintRule
 
-# DEPRECATED: aliases to 0.x names
-# TODO: create lint rules to fix references
-CstLintRule = LintRule
-CSTLintRule = LintRule
-InvalidTestCase = Invalid
-ValidTestCase = Valid
-
 __all__ = [
-    "CSTLintRule",
     "CodePosition",
     "CodeRange",
     "Config",
-    "CstLintRule",
     "FileContent",
     "Formatter",
     "Invalid",
-    "InvalidTestCase",
     "LintRule",
     "LintViolation",
     "Options",
@@ -47,7 +37,6 @@ __all__ = [
     "Result",
     "Tags",
     "Valid",
-    "ValidTestCase",
     "__version__",
     "fixit_bytes",
     "fixit_file",

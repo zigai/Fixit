@@ -106,7 +106,9 @@ class CompareSingletonPrimitivesByIs(LintRule):
             left_comp = right_comp
 
         if needs_report:
-            self.report(node, replacement=node.with_changes(comparisons=altered_comparisons))
+            self.report(
+                node, self.MESSAGE, replacement=node.with_changes(comparisons=altered_comparisons)
+            )
 
     def alter_operator(self, original_op: cst.Equal | cst.NotEqual) -> cst.Is | cst.IsNot:
         return (

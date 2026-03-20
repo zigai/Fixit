@@ -310,6 +310,6 @@ class NoStringTypeAnnotation(LintRule):
                 value = value.decode("utf-8")
             try:
                 repl = cst.parse_expression(value)
-                self.report(node, replacement=repl)
+                self.report(node, self.MESSAGE, replacement=repl)
             except cst.ParserSyntaxError:
-                self.report(node)
+                self.report(node, self.MESSAGE)

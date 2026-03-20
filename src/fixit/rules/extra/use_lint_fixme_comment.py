@@ -58,4 +58,4 @@ class UseLintFixmeComment(LintRule):
     def visit_Comment(self, node: cst.Comment) -> None:
         target = "# noqa"
         if node.value[: len(target)].lower() == target:
-            self.report(node)
+            self.report(node, self.MESSAGE)

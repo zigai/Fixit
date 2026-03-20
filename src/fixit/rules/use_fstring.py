@@ -155,7 +155,7 @@ class UseFstring(LintRule):
             node,
             m.Call(func=m.Attribute(value=m.SimpleString(), attr=m.Name(value="format"))),
         ):
-            self.report(node)
+            self.report(node, self.MESSAGE)
 
     def visit_BinaryOperation(self, node: cst.BinaryOperation) -> None:
         codegen = self._codegen
@@ -192,7 +192,7 @@ class UseFstring(LintRule):
             while i < len(tokens):
                 if i - 1 >= len(expressions):
                     # Only generate warning for cases where %-string not comes with same number of elements in tuple
-                    self.report(node)
+                    self.report(node, self.MESSAGE)
                     return
                 try:
                     parts.append(
@@ -205,7 +205,7 @@ class UseFstring(LintRule):
                         )
                     )
                 except ValueError:
-                    self.report(node)
+                    self.report(node, self.MESSAGE)
                     return
                 token = tokens[i]
                 if len(token) > 0:
@@ -213,8 +213,8 @@ class UseFstring(LintRule):
                 i += 1
             start = f"f{simple_string.prefix}{simple_string.quote}"
             replacement = cst.FormattedString(parts=parts, start=start, end=simple_string.quote)
-            self.report(node, replacement=replacement)
+            self.report(node, self.MESSAGE, replacement=replacement)
         elif m.matches(
             node, m.BinaryOperation(left=m.SimpleString(), operator=m.Modulo())
         ) and isinstance(cst.ensure_type(node.left, cst.SimpleString).evaluated_value, str):
-            self.report(node)
+            self.report(node, self.MESSAGE)

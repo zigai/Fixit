@@ -152,4 +152,4 @@ class UseAssertIsNotNone(LintRule):
             )
 
             if new_call is not node:
-                self.report(node, replacement=new_call)
+                self.report(node, self.MESSAGE, replacement=new_call)

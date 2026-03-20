@@ -106,7 +106,7 @@ class ReplaceUnionWithOptional(LintRule):
                         )
                     )
                     # TODO(T57106602) refactor lint replacement once extract exists
-            self.report(original_node, replacement=replacement)
+            self.report(original_node, self.MESSAGE, replacement=replacement)
 
     def contains_union_with_none(self, node: cst.Annotation) -> bool:
         return m.matches(

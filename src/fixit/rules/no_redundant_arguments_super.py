@@ -133,7 +133,9 @@ class NoRedundantArgumentsSuper(LintRule):
                 ],
             ),
         ):
-            self.report(original_node, replacement=original_node.with_changes(args=()))
+            self.report(
+                original_node, self.MESSAGE, replacement=original_node.with_changes(args=())
+            )
 
     def _build_arg_class_matcher(self) -> m.Attribute | m.Name:
         matcher: m.Name | m.Attribute = m.Name(value=self.current_classes[0])

@@ -59,4 +59,4 @@ class NoRedundantFString(LintRule):
             node.start.replace("f", "").replace("F", "") + old_string_inner + node.end
         )
 
-        self.report(node, replacement=cst.SimpleString(new_string_literal))
+        self.report(node, self.MESSAGE, replacement=cst.SimpleString(new_string_literal))

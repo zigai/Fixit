@@ -153,4 +153,4 @@ class NoStaticIfCondition(LintRule):
 
     def visit_If(self, node: cst.If) -> None:
         if self._extract_static_bool(node.test) in {True, False}:
-            self.report(node)
+            self.report(node, self.MESSAGE)

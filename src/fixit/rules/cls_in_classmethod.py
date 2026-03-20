@@ -234,7 +234,7 @@ class UseClsInClassmethod(LintRule):
             # an autofix, so it still makes sense for us to report it here.
             new_params = node.params.with_changes(params=(cst.Param(name=cst.Name(value=CLS)),))
             repl = node.with_changes(params=new_params)
-            self.report(node, replacement=repl)
+            self.report(node, self.MESSAGE, replacement=repl)
             return
 
         p0_name = node.params.params[0].name
@@ -253,14 +253,14 @@ class UseClsInClassmethod(LintRule):
             # If metadata creation fails, then the whole lint fails, and if it succeeds,
             # then there is valid metadata. But many other lint rule implementations contain
             # a defensive scope None check like this one, so I assume it is necessary.
-            self.report(node)
+            self.report(node, self.MESSAGE)
             return
 
         if scope[CLS]:
             # The scope already has another assignment to "cls".
             # Trying to rename the first param to "cls" as well may produce broken code.
             # We should therefore refrain from suggesting an autofix in this case.
-            self.report(node)
+            self.report(node, self.MESSAGE)
             return
 
         refs: list[cst.Name | cst.Attribute | cst.BaseString] = []
@@ -277,4 +277,4 @@ class UseClsInClassmethod(LintRule):
             refs += [r.node for r in a.references]
 
         repl = node.visit(_RenameTransformer(refs, CLS))
-        self.report(node, replacement=repl)
+        self.report(node, self.MESSAGE, replacement=repl)

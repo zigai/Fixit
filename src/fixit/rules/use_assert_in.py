@@ -84,7 +84,7 @@ class UseAssertIn(LintRule):
                     ),
                 ],
             )
-            self.report(node, replacement=new_call)
+            self.report(node, self.MESSAGE, replacement=new_call)
         else:
             # ... -> self.assertNotIn(a, b)
             matched, arg1, arg2 = False, None, None
@@ -152,4 +152,4 @@ class UseAssertIn(LintRule):
                     func=cst.Attribute(value=cst.Name("self"), attr=cst.Name("assertNotIn")),
                     args=[arg1, arg2],
                 )
-                self.report(node, replacement=new_call)
+                self.report(node, self.MESSAGE, replacement=new_call)

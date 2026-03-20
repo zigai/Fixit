@@ -59,4 +59,4 @@ class NoInheritFromObject(LintRule):
             )
 
             # report warning and autofix
-            self.report(node, replacement=new_classdef)
+            self.report(node, self.MESSAGE, replacement=new_classdef)

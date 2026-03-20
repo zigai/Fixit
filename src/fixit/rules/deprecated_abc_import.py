@@ -199,6 +199,7 @@ class DeprecatedABCImport(LintRule):
             else:
                 self.report(
                     node,
+                    self.MESSAGE,
                     replacement=node.with_changes(
                         module=cst.Attribute(
                             value=cst.Name(value="collections"),
@@ -274,7 +275,9 @@ class DeprecatedABCImport(LintRule):
                         ),
                     )
 
-            self.report(original_node, replacement=original_node.with_changes(body=node_body))
+            self.report(
+                original_node, self.MESSAGE, replacement=original_node.with_changes(body=node_body)
+            )
 
     def visit_ImportAlias(self, node: cst.ImportAlias) -> None:
         """This catches the `import collections.<ABC>` cases."""
@@ -289,6 +292,7 @@ class DeprecatedABCImport(LintRule):
         ):
             self.report(
                 node,
+                self.MESSAGE,
                 replacement=node.with_changes(
                     name=cst.Attribute(
                         value=cst.Attribute(
@@ -316,6 +320,7 @@ class DeprecatedABCImport(LintRule):
                 # while keeping the remaining classes.
                 self.report(
                     node,
+                    self.MESSAGE,
                     replacement=node.with_changes(
                         bases=[
                             (

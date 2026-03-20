@@ -123,7 +123,7 @@ class CollapseIsinstanceChecks(LintRule):
                 )
 
         if replacement is not None:
-            self.report(node, replacement=replacement)
+            self.report(node, self.MESSAGE, replacement=replacement)
 
     def unwrap(self, node: cst.BaseExpression) -> Iterator[cst.BaseExpression]:
         if m.matches(node, m.BooleanOperation(operator=m.Or())):

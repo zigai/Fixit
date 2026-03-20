@@ -215,16 +215,13 @@ class LintRule(BatchableCSTVisitor):
     def report(
         self,
         node: CSTNode,
-        message: str | None = None,
+        message: str,
         *,
         position: CodePosition | CodeRange | None = None,
         replacement: NodeReplacement[CSTNode] | None = None,
     ) -> None:
         """
         Report a lint rule violation.
-
-        If `message` is not provided, ``self.MESSAGE`` will be used as a violation
-        message. If neither of them are available, this method raises `ValueError`.
 
         The optional `position` parameter can override the location where the
         violation is reported. By default, the entire span of `node` is used. If
@@ -237,12 +234,6 @@ class LintRule(BatchableCSTVisitor):
         if self.ignore_lint(node):
             # TODO: consider logging/reporting this somewhere?
             return
-
-        if not message:
-            # backwards compat with Fixit 1.0 api
-            message = getattr(self, "MESSAGE", None)
-            if not message:
-                raise ValueError(f"No message provided in {self.name}")
 
         if position is None:
             position = self.get_metadata(PositionProvider, node, None)

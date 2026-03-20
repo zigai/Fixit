@@ -104,6 +104,7 @@ class SortedAttributes(LintRule):
             return
         self.report(
             node,
+            self.MESSAGE,
             replacement=node.with_changes(
                 body=node.body.with_changes(
                     body=pre_assign_lines + sorted_assign_lines + post_assign_lines
