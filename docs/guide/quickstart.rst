@@ -22,11 +22,6 @@ Fixit offers multiple integrations, including pre-commit actions and LSP support
 for VSCode and other editors. See the :ref:`Integrations Guide <integrations>`
 for details.
 
-If you are upgrading from previous versions of Fixit, look at the
-:ref:`Upgrade Guide <upgrade>` for a list of changes and tools to assist with
-migrating to the latest version.
-
-
 Usage
 ^^^^^
 

@@ -10,7 +10,6 @@ Built-in Rules
 
 - :mod:`fixit.rules`
 - :mod:`fixit.rules.extra`
-- :mod:`fixit.upgrade`
 
 
 ``fixit.rules``
@@ -50,7 +49,7 @@ Built-in Rules
     Discourages use of ``or`` in except clauses. If an except clause needs to catch multiple exceptions,
     they must be expressed as a parenthesized tuple, for example:
     ``except (ValueError, TypeError)``
-    (https://docs.python.org/3/tutorial/errors.html#handling-exceptions)
+    (https://docs.python.org/3/tutorial/errors.html#handling-exceptions).
 
     When ``or`` is used, only the first operand exception type of the conditional statement will be caught.
     For example::
@@ -306,7 +305,7 @@ Built-in Rules
 
 .. class:: DeprecatedUnittestAsserts
 
-    Discourages the use of various deprecated unittest.TestCase functions
+    Discourages the use of various deprecated unittest.TestCase functions.
 
     See https://docs.python.org/3/library/unittest.html#deprecated-aliases
 
@@ -443,7 +442,7 @@ Built-in Rules
     Enforce the use of ``dataclasses.dataclass`` decorator instead of ``NamedTuple`` for cleaner customization and
     inheritance. It supports default value, combining fields for inheritance, and omitting optional fields at
     instantiation. See `PEP 557 <https://www.python.org/dev/peps/pep-0557>`_.
-    ``@dataclass`` is faster at reading an object's nested properties and executing its methods. (`benchmark <https://medium.com/@jacktator/dataclass-vs-namedtuple-vs-object-for-performance-optimization-in-python-691e234253b9>`_)
+    ``@dataclass`` is faster at reading an object's nested properties and executing its methods. (`benchmark <https://medium.com/@jacktator/dataclass-vs-namedtuple-vs-object-for-performance-optimization-in-python-691e234253b9>`_).
 
     .. attribute:: MESSAGE
         :no-index:
@@ -1055,7 +1054,7 @@ Built-in Rules
 
 .. class:: UseAsyncSleepInAsyncDef
 
-    Detect if asyncio.sleep is used in an async function
+    Detect if asyncio.sleep is used in an async function.
 
     .. attribute:: MESSAGE
         :no-index:
@@ -1253,7 +1252,7 @@ Built-in Rules
                 pass
 .. class:: VariadicCallableSyntax
 
-    Callable types with arbitrary parameters should be written as `Callable[..., T]`
+    Callable types with arbitrary parameters should be written as `Callable[..., T]`.
 
     .. attribute:: AUTOFIX
         :no-index:
@@ -1403,147 +1402,3 @@ Built-in Rules
              1,
              2,  # noqa
             )
-
-``fixit.upgrade``
-^^^^^^^^^^^^^^^^^
-
-.. automodule:: fixit.upgrade
-
-- :class:`FixitDeprecatedImport`
-- :class:`FixitDeprecatedTestCaseKeywords`
-- :class:`FixitRemoveRuleSuffix`
-
-.. class:: FixitDeprecatedImport
-
-    Upgrade lint rules to replace deprecated imports with their replacements.
-
-    .. attribute:: MESSAGE
-        :no-index:
-
-        Fixit deprecated import {old_name}, use {new_name} instead
-
-    .. attribute:: AUTOFIX
-        :no-index:
-        :type: Yes
-
-
-    .. attribute:: VALID
-        :no-index:
-
-        .. code:: python
-
-            from fixit import LintRule
-        .. code:: python
-
-            from fixit import Invalid
-
-    .. attribute:: INVALID
-        :no-index:
-
-        .. code:: python
-
-            from fixit import CstLintRule
-
-            # suggested fix
-            from fixit import LintRule
-
-        .. code:: python
-
-            from fixit import CSTLintRule
-
-            # suggested fix
-            from fixit import LintRule
-
-.. class:: FixitDeprecatedTestCaseKeywords
-
-    Modify lint rule test cases from Fixit 1 to remove deprecated keyword arguments
-    and convert the line and column values into a CodeRange.
-
-    .. important::
-       The use of ``fixit.ValidTestCase`` and ``fixit.InvalidTestCase`` have been
-       deprecated. This rule provides upgrades only to the temporary aliases.
-
-       Use ``fixit upgrade`` to replace the aliases with :class:`fixit.Valid` and
-       :class:`fixit.Invalid`.
-
-       See the :ref:`Version 2 API Changes <v2-api-changes>` for more details.
-
-    .. attribute:: MESSAGE
-        :no-index:
-
-        Fix deprecated ValidTestCase/InvalidTestCase keyword arguments
-
-    .. attribute:: AUTOFIX
-        :no-index:
-        :type: Yes
-
-
-    .. attribute:: VALID
-        :no-index:
-
-        .. code:: python
-
-            from fixit import InvalidTestCase
-
-            InvalidTestCase(
-                "print('hello')",
-                message="oops",
-            )
-
-    .. attribute:: INVALID
-        :no-index:
-
-        .. code:: python
-
-            from fixit import InvalidTestCase
-
-            InvalidTestCase(
-                "print('hello')",
-                line=3,
-                column=10,
-                config=None,
-                filename="hello.py",
-                kind="X123",
-            )
-
-            # suggested fix
-            from fixit import InvalidTestCase
-
-            InvalidTestCase(
-                "print('hello')",
-                range = CodeRange(start=CodePosition(3, 10), end=CodePosition(1 + 3, 0)))
-
-.. class:: FixitRemoveRuleSuffix
-
-    Remove the "Rule" suffix from lint rule class names
-
-    .. attribute:: MESSAGE
-        :no-index:
-
-        Do not end lint rule subclasses with 'Rule'
-
-
-    .. attribute:: VALID
-        :no-index:
-
-        .. code:: python
-
-            import fixit
-            class DontTryThisAtHome(fixit.LintRule): ...
-        .. code:: python
-
-            from fixit import LintRule
-            class CatsRuleDogsDrool(LintRule): ...
-
-    .. attribute:: INVALID
-        :no-index:
-
-        .. code:: python
-
-            import fixit
-            class DontTryThisAtHomeRule(fixit.LintRule): ...
-        .. code:: python
-
-            from fixit import LintRule
-            class CatsRuleDogsDroolRule(LintRule): ...
-    

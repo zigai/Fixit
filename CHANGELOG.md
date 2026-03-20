@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+Breaking:
+
+- Remove deprecated `fixit` aliases `CstLintRule`, `CSTLintRule`, `ValidTestCase`, and `InvalidTestCase`
+- Remove the `fixit upgrade` command and the `fixit.upgrade` migration rules package
+- Make `LintRule.report()` require an explicit violation message
+
+
 ## 2.2.0 - 2025-11-04
 
 New:

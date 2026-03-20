@@ -11,7 +11,7 @@ from jinja2 import Template
 from fixit.config import find_rules
 from fixit.ftypes import QualifiedRule
 
-RULES = ["fixit.rules", "fixit.rules.extra", "fixit.upgrade"]
+RULES = ["fixit.rules", "fixit.rules.extra"]
 
 RULES_DOC = Path(__file__).parent.parent / "docs" / "guide" / "builtins.rst"
 
