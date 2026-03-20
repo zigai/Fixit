@@ -49,6 +49,7 @@ dev = [
     "codespell",
     "coverage",
     "pre-commit",
+    "pytest",
     "pyright",
     "tomli",
     "ufmt == 2.8.0",
@@ -115,6 +116,17 @@ reportMissingParameterType = "warning"
 
 [tool.codespell]
 skip = ".git,uv.lock"
+
+[tool.pytest.ini_options]
+testpaths = ["src/fixit/tests"]
+python_files = [
+    "test_*.py",
+    "config.py",
+    "engine.py",
+    "ftypes.py",
+    "rule.py",
+    "smoke.py",
+]
 
 [tool.ruff]
 line-length = 100

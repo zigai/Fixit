@@ -34,9 +34,9 @@ format: _require-uv
 fix: _require-uv
   uv run --extra dev ruff check --fix src/fixit scripts examples docs/conf.py
 
-# run the packaged unittest suite
+# run the pytest suite
 test: _require-uv
-  uv run --extra dev --extra lsp python -m fixit.tests
+  uv run --extra dev --extra lsp pytest
 
 # build the package
 build: _require-uv
@@ -48,7 +48,7 @@ sync: install
 
 # run tests with coverage and show a coverage report
 coverage: _require-uv
-  uv run --extra dev --extra lsp coverage run -m fixit.tests
+  uv run --extra dev --extra lsp coverage run -m pytest
   uv run --extra dev coverage report
 
 # build the docs and regenerate the builtins page
