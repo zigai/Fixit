@@ -69,16 +69,12 @@ clean:
 typecheck: _require-uv
   uv run --extra dev pyright
 
-# static type check with pyrefly
-pyrefly: _require-uv
-  uv run --extra dev pyrefly check -c pyproject.toml
-
 # check code for common misspellings
 spell: _require-uv
   uv run --extra dev codespell
 
 # run all quality checks
-check: lint coverage typecheck pyrefly spell headers
+check: lint coverage typecheck spell headers
 
 # run the main local workflow
 all: install test lint docs

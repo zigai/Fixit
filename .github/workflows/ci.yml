@@ -42,20 +42,6 @@ jobs:
         run: uv run --extra dev --extra lsp pytest
       - name: Pyright
         run: uv run --extra dev pyright
-  
-  pyrefly:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v7
-        with:
-          python-version: "3.12"
-          activate-environment: true
-      - name: Install
-        run: uv sync --inexact --extra dev
-      - name: Pyrefly
-        run: uv run --extra dev pyrefly check -c pyproject.toml
 
   docs:
     runs-on: ubuntu-latest

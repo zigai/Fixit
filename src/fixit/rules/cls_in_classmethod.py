@@ -230,8 +230,8 @@ class UseClsInClassmethod(LintRule):
         repl: cst.CSTNode | cst.RemovalSentinel | cst.FlattenSentinel[cst.FunctionDef]
         if not node.params.params:
             # No params, but there must be the 'cls' param.
-            # Note that pyre[47] already catches this, but we also generate
-            # an autofix, so it still makes sense for us to report it here.
+            # Static analysis can catch this, but we also generate an autofix,
+            # so it still makes sense for us to report it here.
             new_params = node.params.with_changes(params=(cst.Param(name=cst.Name(value=CLS)),))
             repl = node.with_changes(params=new_params)
             self.report(node, self.MESSAGE, replacement=repl)

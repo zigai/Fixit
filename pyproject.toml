@@ -54,7 +54,6 @@ dev = [
     "tomli",
     "ufmt == 2.8.0",
     "usort == 1.0.8.post1",
-    "pyrefly == 0.54.0",
     "ruff",
 ]
 lsp = [
@@ -293,13 +292,3 @@ known-first-party = ["fixit"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
-
-[tool.pyrefly]
-project_includes = [
-    # Start by adding a single file and we'll expand as we go
-    "src/fixit/util.py"
-]
-search_path = [
-    "src"
-]
-python_version = "3.12"
