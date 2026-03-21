@@ -11,6 +11,15 @@ from fixit import ftypes
 
 
 class TypesTest(TestCase):
+    def test_rule_option_value(self) -> None:
+        for value in ("hello", 1, 1.5, True, ["TODO", "FIXME"], [1, 2], [False, True]):
+            with self.subTest(value):
+                assert ftypes.is_rule_option_value(value)
+
+        for value in ({}, [{"nested": "value"}], [[1, 2]], [object()]):
+            with self.subTest(value):
+                assert not ftypes.is_rule_option_value(value)
+
     def test_ignore_comment_regex(self) -> None:
         for value, expected_names in (
             ("#lint-ignore", None),

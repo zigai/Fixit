@@ -46,7 +46,7 @@ class ConfigTest(TestCase):
                 path = "other"
                 enable = ["other.stuff", ".globalrules"]
                 disable = ["fixit.rules"]
-                options = {"other.stuff.Whatever"={key="value"}}
+                options = {"other.stuff:Whatever"={key="value"}}
                 python-version = "3.10"
                 """
             )
@@ -184,7 +184,7 @@ class ConfigTest(TestCase):
                                     "path": "other",
                                     "enable": ["other.stuff", ".globalrules"],
                                     "disable": ["fixit.rules"],
-                                    "options": {"other.stuff.Whatever": {"key": "value"}},
+                                    "options": {"other.stuff:Whatever": {"key": "value"}},
                                     "python-version": "3.10",
                                 },
                             ],
@@ -210,7 +210,7 @@ class ConfigTest(TestCase):
                                     "path": "other",
                                     "enable": ["other.stuff", ".globalrules"],
                                     "disable": ["fixit.rules"],
-                                    "options": {"other.stuff.Whatever": {"key": "value"}},
+                                    "options": {"other.stuff:Whatever": {"key": "value"}},
                                     "python-version": "3.10",
                                 },
                             ],
@@ -235,7 +235,7 @@ class ConfigTest(TestCase):
                                     "path": "other",
                                     "enable": ["other.stuff", ".globalrules"],
                                     "disable": ["fixit.rules"],
-                                    "options": {"other.stuff.Whatever": {"key": "value"}},
+                                    "options": {"other.stuff:Whatever": {"key": "value"}},
                                     "python-version": "3.10",
                                 },
                             ],
@@ -329,6 +329,49 @@ class ConfigTest(TestCase):
                     enable=[QualifiedRule("fixit.rules"), QualifiedRule("foo")],
                 ),
             ),
+            (
+                "option merge",
+                [
+                    RawConfig(
+                        (root / "a/b/c/fixit.toml"),
+                        {
+                            "options": {
+                                "fixit.rules:UseFstring": {"allowed_prefixes": ["TODO", "FIXME"]}
+                            }
+                        },
+                    ),
+                    RawConfig(
+                        (root / "a/b/fixit.toml"),
+                        {
+                            "options": {
+                                "fixit.rules:UseFstring": {"simple_expression_max_length": 60}
+                            }
+                        },
+                    ),
+                    RawConfig(
+                        (root / "a/fixit.toml"),
+                        {
+                            "options": {
+                                "fixit.rules:UseFstring": {
+                                    "simple_expression_max_length": 30,
+                                    "allow_dot_format": False,
+                                }
+                            }
+                        },
+                    ),
+                ],
+                Config(
+                    path=target,
+                    root=(root / "a"),
+                    options={
+                        "fixit.rules:UseFstring": {
+                            "simple_expression_max_length": 60,
+                            "allow_dot_format": False,
+                            "allowed_prefixes": ["TODO", "FIXME"],
+                        }
+                    },
+                ),
+            ),
         )
         for name, raw_configs, expected in params:
             with self.subTest(name):
@@ -403,7 +446,7 @@ class ConfigTest(TestCase):
                         QualifiedRule("fixit.rules"),
                         QualifiedRule("fixit.rules.SomethingSpecific"),
                     ],
-                    options={"other.stuff.Whatever": {"key": "value"}},
+                    options={"other.stuff:Whatever": {"key": "value"}},
                     python_version=Version("3.10"),
                 ),
             ),
@@ -461,10 +504,43 @@ class ConfigTest(TestCase):
             with pytest.raises(config.ConfigError, match="output-format"):
                 config.generate_config(self.tdp / "outer" / "foo.py")
 
+        with self.subTest("options require concrete rule"):
+            (self.tdp / "pyproject.toml").write_text(
+                dedent(
+                    """
+                    [tool.fixit]
+                    root = true
+
+                    [tool.fixit.options]
+                    "fixit.rules" = {foo = 1}
+                    """
+                )
+            )
+
+            with pytest.raises(config.ConfigError, match="module:ClassName"):
+                config.generate_config(self.tdp / "foo.py")
+
+        with self.subTest("options value must be scalar or scalar array"):
+            (self.tdp / "pyproject.toml").write_text(
+                dedent(
+                    """
+                    [tool.fixit]
+                    root = true
+
+                    [tool.fixit.options]
+                    "fixit.rules:UseFstring" = { simple_expression_max_length = { nested = true } }
+                    """
+                )
+            )
+
+            with pytest.raises(config.ConfigError, match="TOML scalar or array of scalars"):
+                config.generate_config(self.tdp / "foo.py")
+
     def test_collect_rules(self) -> None:
         from fixit.rules.avoid_or_in_except import AvoidOrInExcept
         from fixit.rules.cls_in_classmethod import UseClsInClassmethod
         from fixit.rules.no_namedtuple import NoNamedTuple
+        from fixit.rules.use_fstring import UseFstring
         from fixit.rules.use_types_from_typing import UseTypesFromTyping
 
         AvoidOrInExcept.TAGS = {"exceptions"}
@@ -582,6 +658,31 @@ class ConfigTest(TestCase):
             )
             assert [UseTypesFromTyping] == rules
 
+        with self.subTest("rule settings apply"):
+            (rule,) = config.collect_rules(
+                Config(
+                    enable=[QualifiedRule("fixit.rules", "UseFstring")],
+                    disable=[],
+                    options={"fixit.rules:UseFstring": {"simple_expression_max_length": 80}},
+                    python_version=None,
+                )
+            )
+            assert isinstance(rule, UseFstring)
+            assert rule.settings["simple_expression_max_length"] == 80
+
+        with (
+            self.subTest("invalid rule setting name fails"),
+            pytest.raises(ValueError, match="unknown setting"),
+        ):
+            config.collect_rules(
+                Config(
+                    enable=[QualifiedRule("fixit.rules", "UseFstring")],
+                    disable=[],
+                    options={"fixit.rules:UseFstring": {"not_a_setting": 80}},
+                    python_version=None,
+                )
+            )
+
     def test_format_output(self) -> None:
         with chdir(self.tdp):
             (self.tdp / "pyproject.toml").write_text(
@@ -664,6 +765,60 @@ class ConfigTest(TestCase):
 
             assert results == []
 
+        with self.subTest("validate-config valid with options"), TemporaryDirectory() as td:
+            tdp = Path(td).resolve()
+            path = tdp / ".fixit.toml"
+            path.write_text(
+                """
+                    [tool.fixit]
+                    root = true
+
+                    [tool.fixit.options]
+                    "fixit.rules.use_fstring:UseFstring" = {simple_expression_max_length = 42}
+                    """
+            )
+
+            results = config.validate_config(path)
+
+            assert results == []
+
+        with self.subTest("validate-config invalid options key"), TemporaryDirectory() as td:
+            tdp = Path(td).resolve()
+            path = tdp / ".fixit.toml"
+            path.write_text(
+                """
+                [tool.fixit]
+                root = true
+
+                [tool.fixit.options]
+                "fixit.rules" = {simple_expression_max_length = 42}
+                """
+            )
+
+            results = config.validate_config(path)
+
+            assert any("Failed to parse options for global options" in result for result in results)
+
+        with self.subTest("validate-config invalid options value"), TemporaryDirectory() as td:
+            tdp = Path(td).resolve()
+            path = tdp / ".fixit.toml"
+            path.write_text(
+                """
+                [tool.fixit]
+                root = true
+
+                [tool.fixit.options]
+                "fixit.rules.use_fstring:UseFstring" = {simple_expression_max_length = "long"}
+                """
+            )
+
+            results = config.validate_config(path)
+
+            assert any(
+                "Failed to validate options for `fixit.rules.use_fstring:UseFstring`" in result
+                for result in results
+            )
+
     def test_validate_config_with_override(self) -> None:
         with self.subTest("validate-config valid with overrides"), TemporaryDirectory() as td:
             tdp = Path(td).resolve()
@@ -685,6 +840,49 @@ class ConfigTest(TestCase):
                 [[tool.fixit.overrides]]
                 path = "SUPER_REAL_PATH/BUT_ACTUALLY_REAL"
                 enable = [".rule.ruledir.rule"]
+                """
+            )
+
+            results = config.validate_config(path)
+
+            assert results == []
+
+        with self.subTest("validate-config valid override options"), TemporaryDirectory() as td:
+            tdp = Path(td).resolve()
+            path = tdp / ".fixit.toml"
+            path.write_text(
+                """
+                [tool.fixit]
+                root = true
+
+                [[tool.fixit.overrides]]
+                path = "SUPER_REAL_PATH"
+
+                [tool.fixit.overrides.options."fixit.rules.use_fstring:UseFstring"]
+                simple_expression_max_length = 52
+                """
+            )
+
+            results = config.validate_config(path)
+
+            assert results == []
+
+        with (
+            self.subTest("validate-config valid override options legacy table"),
+            TemporaryDirectory() as td,
+        ):
+            tdp = Path(td).resolve()
+            path = tdp / ".fixit.toml"
+            path.write_text(
+                """
+                [tool.fixit]
+                root = true
+
+                [[tool.fixit.overrides]]
+                path = "SUPER_REAL_PATH"
+
+                [[tool.fixit.overrides.options]]
+                "fixit.rules.use_fstring:UseFstring" = {simple_expression_max_length = 52}
                 """
             )
 

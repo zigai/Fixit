@@ -9,11 +9,12 @@ from unittest import TestCase
 from unittest.mock import MagicMock
 
 import libcst as cst
+import pytest
 from libcst.metadata import CodePosition, CodeRange
 
 from fixit.engine import LintRunner
 from fixit.ftypes import Config, LintViolation
-from fixit.rule import LintRule
+from fixit.rule import LintRule, RuleSetting
 
 
 class NoopRule(LintRule):
@@ -95,6 +96,13 @@ class ExerciseReportRule(LintRule):
         return False
 
 
+class ConfigurableRule(LintRule):
+    SETTINGS = {
+        "max_length": RuleSetting(int, default=10),
+        "allowed_prefixes": RuleSetting(list[str], default=["TODO"]),
+    }
+
+
 class RuleTest(TestCase):
     def setUp(self) -> None:
         self.rules = [ExerciseReportRule()]
@@ -174,7 +182,7 @@ class RuleTest(TestCase):
         )
 
     def test_report_requires_message(self) -> None:
-        with self.assertRaises(TypeError):
+        with pytest.raises(TypeError):
             self.rules[0].report(cst.Pass())
 
     def test_ignore_lint(self) -> None:
@@ -416,3 +424,32 @@ class RuleTest(TestCase):
                             for v in violations
                         )
                     )
+
+    def test_rule_setting_defaults(self) -> None:
+        rule = ConfigurableRule()
+        assert dict(rule.settings) == {}
+        rule.configure({})
+        assert rule.settings["max_length"] == 10
+        assert rule.settings["allowed_prefixes"] == ["TODO"]
+
+    def test_rule_setting_configure_overrides(self) -> None:
+        rule = ConfigurableRule()
+        rule.configure({"max_length": 20, "allowed_prefixes": ["TODO", "FIXME"]})
+        assert rule.settings["max_length"] == 20
+        assert rule.settings["allowed_prefixes"] == ["TODO", "FIXME"]
+
+    def test_rule_setting_unknown_key(self) -> None:
+        rule = ConfigurableRule()
+        with pytest.raises(ValueError, match="unknown setting"):
+            rule.configure({"unknown": 1})
+
+    def test_rule_setting_invalid_type(self) -> None:
+        rule = ConfigurableRule()
+        with pytest.raises(ValueError, match="expected items of type"):
+            rule.configure({"allowed_prefixes": [1]})
+
+    def test_runner_applies_default_settings(self) -> None:
+        runner = LintRunner(Path("fake.py"), b"pass")
+        rule = ConfigurableRule()
+        list(runner.collect_violations([rule], Config()))
+        assert rule.settings["max_length"] == 10
