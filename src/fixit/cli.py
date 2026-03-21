@@ -38,9 +38,9 @@ def splash(visited: set[Path], dirty: set[Path], autofixes: int = 0, fixed: int 
             reports += [click.style(f"{fixed} {word} applied", bold=True)]
 
         message = ", ".join(reports)
-        click.secho(f"🛠️  {message} 🛠️", err=True)
+        click.secho(message, err=True)
     else:
-        click.secho(f"🧼 {len(visited)} {f(len(visited))} clean 🧼", err=True)
+        click.secho(f"{len(visited)} {f(len(visited))} clean", err=True)
 
 
 @click.group()

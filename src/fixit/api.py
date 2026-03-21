@@ -12,6 +12,7 @@ from pathlib import Path
 
 import click
 import trailrunner
+from libcst import ParserSyntaxError
 from moreorless.click import echo_color_precomputed_diff
 
 from .config import collect_rules, generate_config
@@ -27,12 +28,99 @@ from .ftypes import (
     OutputFormat,
     Result,
 )
+from .output import render_fixit_result
 
 LOG = logging.getLogger(__name__)
 
 
-def _result_from_exception(path: Path, error: Exception) -> Result:
-    return Result(path, violation=None, error=(error, traceback.format_exc()))
+def _display_path(path: Path) -> Path:
+    try:
+        return path.relative_to(Path.cwd())
+    except ValueError:
+        return path
+
+
+def _result_from_exception(
+    path: Path, error: Exception, *, source: FileContent | None = None
+) -> Result:
+    return Result(path, violation=None, error=(error, traceback.format_exc()), source=source)
+
+
+def _print_fixit_result(result: Result, *, path: Path, show_diff: bool, stderr: bool) -> bool:
+    rendered = render_fixit_result(result, path=path, color=True)
+    if rendered is None:
+        return False
+
+    click.echo(rendered, err=stderr, color=None)
+    if show_diff and result.violation and result.violation.diff:
+        echo_color_precomputed_diff(result.violation.diff)
+    click.echo(err=stderr, color=None)
+    return True
+
+
+def _print_violation_result(
+    result: Result,
+    *,
+    path: Path,
+    show_diff: bool,
+    stderr: bool,
+    output_format: OutputFormat,
+    output_template: str,
+) -> bool:
+    violation = result.violation
+    assert violation is not None
+
+    rule_name = violation.rule_name
+    start_line = violation.range.start.line
+    start_col = violation.range.start.column
+    message = violation.message
+    if violation.autofixable:
+        message += " (has autofix)"
+
+    if output_format == OutputFormat.fixit:
+        if _print_fixit_result(result, path=path, show_diff=show_diff, stderr=stderr):
+            return True
+        raise NotImplementedError("missing fixit renderer for lint violation")
+
+    if output_format == OutputFormat.vscode:
+        line = f"{path}:{start_line}:{start_col} {rule_name}: {message}"
+    elif output_format == OutputFormat.custom:
+        line = output_template.format(
+            message=message,
+            path=path,
+            result=result,
+            rule_name=rule_name,
+            start_col=start_col,
+            start_line=start_line,
+        )
+    else:
+        raise NotImplementedError(f"output-format = {output_format!r}")
+
+    click.secho(line, fg="yellow", err=stderr)
+    if show_diff and violation.diff:
+        echo_color_precomputed_diff(violation.diff)
+    return True
+
+
+def _print_error_result(
+    result: Result,
+    *,
+    path: Path,
+    show_diff: bool,
+    stderr: bool,
+    output_format: OutputFormat,
+) -> bool:
+    error, tb = result.error or (None, "")
+    assert error is not None
+
+    if output_format == OutputFormat.fixit and isinstance(error, ParserSyntaxError):
+        if _print_fixit_result(result, path=path, show_diff=show_diff, stderr=stderr):
+            return True
+        raise NotImplementedError("missing fixit renderer for syntax error")
+
+    click.secho(f"{path}: EXCEPTION: {error}", fg="red", err=stderr)
+    click.echo(tb.strip(), err=stderr)
+    return True
 
 
 def _expand_paths(paths: Iterable[Path]) -> tuple[list[Path], bool, Path]:
@@ -73,47 +161,26 @@ def print_result(
 
     Returns ``True`` if the result is "dirty" - either a lint error or exception.
     """
-    path = result.path
-    try:
-        path = path.relative_to(Path.cwd())
-    except ValueError:
-        pass
+    path = _display_path(result.path)
 
     if result.violation:
-        rule_name = result.violation.rule_name
-        start_line = result.violation.range.start.line
-        start_col = result.violation.range.start.column
-        message = result.violation.message
-        if result.violation.autofixable:
-            message += " (has autofix)"
-
-        if output_format == OutputFormat.fixit:
-            line = f"{path}@{start_line}:{start_col} {rule_name}: {message}"
-        elif output_format == OutputFormat.vscode:
-            line = f"{path}:{start_line}:{start_col} {rule_name}: {message}"
-        elif output_format == OutputFormat.custom:
-            line = output_template.format(
-                message=message,
-                path=path,
-                result=result,
-                rule_name=rule_name,
-                start_col=start_col,
-                start_line=start_line,
-            )
-        else:
-            raise NotImplementedError(f"output-format = {output_format!r}")
-        click.secho(line, fg="yellow", err=stderr)
-
-        if show_diff and result.violation.diff:
-            echo_color_precomputed_diff(result.violation.diff)
-        return True
+        return _print_violation_result(
+            result,
+            path=path,
+            show_diff=show_diff,
+            stderr=stderr,
+            output_format=output_format,
+            output_template=output_template,
+        )
 
     if result.error:
-        # An exception occurred while processing a file
-        error, tb = result.error
-        click.secho(f"{path}: EXCEPTION: {error}", fg="red", err=stderr)
-        click.echo(tb.strip(), err=stderr)
-        return True
+        return _print_error_result(
+            result,
+            path=path,
+            show_diff=show_diff,
+            stderr=stderr,
+            output_format=output_format,
+        )
 
     LOG.debug("%s: clean", path)
     return False
@@ -147,7 +214,7 @@ def fixit_bytes(
         rules = collect_rules(config)
 
         if not rules:
-            yield Result(path, violation=None)
+            yield Result(path, violation=None, source=content)
             return None
 
         runner = LintRunner(path, content)
@@ -156,12 +223,12 @@ def fixit_bytes(
         clean = True
         for violation in runner.collect_violations(rules, config, metrics_hook):
             clean = False
-            fix = yield Result(path, violation)
+            fix = yield Result(path, violation, source=content)
             if fix or autofix:
                 pending_fixes.append(violation)
 
         if clean:
-            yield Result(path, violation=None)
+            yield Result(path, violation=None, source=content)
 
         if pending_fixes:
             updated = runner.apply_replacements(pending_fixes)
@@ -170,7 +237,7 @@ def fixit_bytes(
     except Exception as error:  # noqa: BLE001 - result conversion boundary
         # TODO: this is not the right place to catch errors
         LOG.debug("Exception while linting", exc_info=error)
-        yield _result_from_exception(path, error)
+        yield _result_from_exception(path, error, source=content)
 
     return None
 
@@ -205,7 +272,7 @@ def fixit_stdin(
 
     except Exception as error:  # noqa: BLE001 - stdin boundary
         LOG.debug("Exception while fixit_stdin", exc_info=error)
-        yield _result_from_exception(path, error)
+        yield _result_from_exception(path, error, source=content if "content" in locals() else None)
 
 
 def fixit_file(
@@ -241,7 +308,7 @@ def fixit_file(
 
     except Exception as error:  # noqa: BLE001 - file boundary
         LOG.debug("Exception while fixit_file", exc_info=error)
-        yield _result_from_exception(path, error)
+        yield _result_from_exception(path, error, source=content if "content" in locals() else None)
 
 
 def _fixit_file_wrapper(

@@ -264,3 +264,4 @@ class Result:
     path: Path
     violation: LintViolation | None
     error: tuple[Exception, str] | None = None
+    source: FileContent | None = None
