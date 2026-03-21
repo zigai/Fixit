@@ -77,6 +77,7 @@ class LintRuleTestCase(unittest.TestCase):
         test_case: Valid | Invalid,
         rule: LintRule,
     ) -> None:
+        rule.configure(test_case.options or {})
         path = Path.cwd() / ("valid.py" if isinstance(test_case, Valid) else "invalid.py")
         config = Config(path=path)
         source_code = _dedent(test_case.code)

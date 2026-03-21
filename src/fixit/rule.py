@@ -6,10 +6,15 @@
 from __future__ import annotations
 
 import functools
-from collections.abc import Collection, Generator, Mapping, Sequence
-from dataclasses import replace
+from collections.abc import Callable, Collection, Generator, Mapping, Sequence
+from copy import deepcopy
+from dataclasses import dataclass, replace
+from types import MappingProxyType
 from typing import (
+    Any,
     ClassVar,
+    get_args,
+    get_origin,
 )
 
 from libcst import (
@@ -42,6 +47,99 @@ from .ftypes import (
 )
 
 
+class RuleConfigurationError(ValueError):
+    pass
+
+
+_RULE_SETTING_MISSING = object()
+_SCALAR_SETTING_TYPES = (str, int, float, bool)
+
+
+def _is_scalar_setting_type(value: object) -> bool:
+    return isinstance(value, type) and value in _SCALAR_SETTING_TYPES
+
+
+def _is_instance_for_type(value: object, expected: type[object]) -> bool:
+    if expected is bool:
+        return isinstance(value, bool)
+    if expected is int:
+        return type(value) is int
+    if expected is float:
+        return type(value) is float
+    if expected is str:
+        return isinstance(value, str)
+    return isinstance(value, expected)
+
+
+@dataclass(frozen=True)
+class RuleSetting:
+    value_type: object
+    default: object = _RULE_SETTING_MISSING
+    validator: Callable[[object], object] | None = None
+
+    def _validate_type(
+        self,
+        *,
+        value: object,
+        setting_name: str,
+        rule_name: str,
+    ) -> None:
+        expected_type = self.value_type
+        origin = get_origin(expected_type)
+        if origin is list:
+            args = get_args(expected_type)
+            if len(args) != 1 or not _is_scalar_setting_type(args[0]):
+                raise RuleConfigurationError(
+                    f"{rule_name}: unsupported list type for setting {setting_name!r}: {expected_type!r}"
+                )
+
+            item_type = args[0]
+            if not isinstance(value, list):
+                raise RuleConfigurationError(
+                    f"{rule_name}: setting {setting_name!r} expected {expected_type!r}, got {type(value)!r}"
+                )
+
+            if not all(_is_instance_for_type(item, item_type) for item in value):
+                raise RuleConfigurationError(
+                    f"{rule_name}: setting {setting_name!r} expected items of type {item_type!r}, got {value!r}"
+                )
+            return
+
+        if not _is_scalar_setting_type(expected_type):
+            raise RuleConfigurationError(
+                f"{rule_name}: unsupported type for setting {setting_name!r}: {expected_type!r}"
+            )
+
+        if not _is_instance_for_type(value, expected_type):
+            raise RuleConfigurationError(
+                f"{rule_name}: setting {setting_name!r} expected {expected_type!r}, got {type(value)!r}"
+            )
+
+    def validate(
+        self,
+        value: object,
+        *,
+        setting_name: str,
+        rule_name: str,
+    ) -> object:
+        self._validate_type(value=value, setting_name=setting_name, rule_name=rule_name)
+
+        if self.validator:
+            try:
+                validator_result = self.validator(value)
+            except Exception as error:
+                raise RuleConfigurationError(
+                    f"{rule_name}: setting {setting_name!r} failed validation: {error}"
+                ) from error
+
+            if validator_result is False:
+                raise RuleConfigurationError(
+                    f"{rule_name}: setting {setting_name!r} failed validation"
+                )
+
+        return value
+
+
 class LintRule(BatchableCSTVisitor):
     """
     Lint rule implemented using LibCST.
@@ -72,6 +170,9 @@ class LintRule(BatchableCSTVisitor):
     INVALID: ClassVar[Sequence[str | Invalid]]
     "Test cases that are expected to produce errors, with optional replacements"
 
+    SETTINGS: ClassVar[dict[str, RuleSetting]] = {}
+    "Optional typed configuration settings for this lint rule."
+
     AUTOFIX = False  # set by __subclass_init__
     """
     Whether the lint rule contains an autofix.
@@ -87,6 +188,7 @@ class LintRule(BatchableCSTVisitor):
 
     def __init__(self) -> None:
         self._violations: list[LintViolation] = []
+        self.settings: Mapping[str, Any] = MappingProxyType({})
         self.name = self.__class__.__name__
         self.name = self.name.removesuffix("Rule")
 
@@ -101,7 +203,38 @@ class LintRule(BatchableCSTVisitor):
                 return
 
     def __str__(self) -> str:
-        return f"{self.__class__.__module__}:{self.__class__.__name__}"
+        return self.qualified_name()
+
+    @classmethod
+    def qualified_name(cls) -> str:
+        return f"{cls.__module__}:{cls.__name__}"
+
+    def configure(self, raw_settings: Mapping[str, object]) -> None:
+        unknown_settings = sorted(set(raw_settings) - set(self.SETTINGS))
+        if unknown_settings:
+            available = sorted(self.SETTINGS)
+            raise RuleConfigurationError(
+                f"{self.qualified_name()}: unknown setting(s) {unknown_settings!r}; available settings: {available!r}"
+            )
+
+        resolved_settings: dict[str, object] = {}
+        for setting_name, setting in self.SETTINGS.items():
+            if setting_name in raw_settings:
+                value = raw_settings[setting_name]
+            elif setting.default is _RULE_SETTING_MISSING:
+                raise RuleConfigurationError(
+                    f"{self.qualified_name()}: missing required setting {setting_name!r}"
+                )
+            else:
+                value = deepcopy(setting.default)
+
+            resolved_settings[setting_name] = setting.validate(
+                value,
+                setting_name=setting_name,
+                rule_name=self.qualified_name(),
+            )
+
+        self.settings = MappingProxyType(resolved_settings)
 
     _visit_hook: VisitHook | None = None
 

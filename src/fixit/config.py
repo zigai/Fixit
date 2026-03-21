@@ -30,8 +30,8 @@ from .ftypes import (
     QualifiedRuleRegex,
     RawConfig,
     RuleOptionsTable,
-    RuleOptionTypes,
     T,
+    is_rule_option_value,
     is_sequence,
 )
 from .rule import LintRule
@@ -85,6 +85,54 @@ def _validate_rule(
         exceptions.append(
             f"Failed to import rule `{rule}` for {context}: {error.__class__.__name__}: {error}"
         )
+
+
+def _validate_rule_option(
+    *,
+    rule_name: str,
+    settings: Mapping[str, object],
+    root: Path,
+    config: RawConfig,
+    context: str,
+) -> str | None:
+    try:
+        qualified_rule = parse_rule(rule_name, root, config)
+    except Exception as error:  # noqa: BLE001 - validation boundary
+        return (
+            f"Failed to validate options for `{rule_name}` in {context}: "
+            f"{error.__class__.__name__}: {error}"
+        )
+
+    if qualified_rule.name is None:
+        return (
+            f"Failed to validate options for `{rule_name}` in {context}: "
+            "ConfigError: rule target must reference one concrete rule (`module:ClassName`)"
+        )
+
+    try:
+        rule_types = list(find_rules(qualified_rule))
+    except Exception as error:  # noqa: BLE001 - validation boundary
+        return (
+            f"Failed to validate options for `{rule_name}` in {context}: "
+            f"{error.__class__.__name__}: {error}"
+        )
+
+    if len(rule_types) != 1:
+        return (
+            f"Failed to validate options for `{rule_name}` in {context}: "
+            "ConfigError: rule target must resolve to exactly one rule class"
+        )
+
+    try:
+        rule = rule_types[0]()
+        rule.configure(settings)
+    except Exception as error:  # noqa: BLE001 - validation boundary
+        return (
+            f"Failed to validate options for `{rule_name}` in {context}: "
+            f"{error.__class__.__name__}: {error}"
+        )
+
+    return None
 
 
 class ConfigError(ValueError):
@@ -215,13 +263,35 @@ def walk_module(module: ModuleType) -> dict[str, type[LintRule]]:
     return rules
 
 
-def collect_rules(
+def _rule_key_for_type(rule_type: type[LintRule]) -> str:
+    return f"{rule_type.__module__}:{rule_type.__name__}"
+
+
+def _option_key_aliases_for_rule_type(rule_type: type[LintRule]) -> set[str]:
+    module_parts = rule_type.__module__.split(".")
+    aliases: set[str] = set()
+    for idx in range(len(module_parts), 0, -1):
+        module_name = ".".join(module_parts[:idx])
+        aliases.add(f"{module_name}:{rule_type.__name__}")
+
+    local_prefix = f"{FIXIT_LOCAL_MODULE}."
+    if rule_type.__module__.startswith(local_prefix):
+        local_module = rule_type.__module__.removeprefix(local_prefix)
+        local_parts = local_module.split(".")
+        for idx in range(len(local_parts), 0, -1):
+            module_name = ".".join(local_parts[:idx])
+            aliases.add(f".{module_name}:{rule_type.__name__}")
+
+    return aliases
+
+
+def collect_rule_types(
     config: Config,
     *,
     # out-param to capture reasons when disabling rules for debugging
     debug_reasons: dict[type[LintRule], str] | None = None,
-) -> Collection[LintRule]:
-    """Import and return rules specified by `enables` and `disables`."""
+) -> Collection[type[LintRule]]:
+    """Import and return rule types specified by `enables` and `disables`."""
     all_rules: set[type[LintRule]] = set()
     named_enables: set[type[LintRule]] = set()
     disabled_rules = debug_reasons if debug_reasons is not None else {}
@@ -267,9 +337,53 @@ def collect_rules(
             )
             all_rules -= set(disabled_rules)
 
-        materialized_rules = [R() for R in all_rules]
+    return all_rules
+
+
+def resolve_rule_settings(
+    config: Config,
+    rule_types: Collection[type[LintRule]],
+) -> dict[type[LintRule], dict[str, object]]:
+    rules_by_key: dict[str, type[LintRule]] = {}
+    for rule_type in rule_types:
+        for alias in _option_key_aliases_for_rule_type(rule_type):
+            rules_by_key[alias] = rule_type
+
+    resolved_settings: dict[type[LintRule], dict[str, object]] = {}
+    for rule_name, settings in config.options.items():
+        rule_type = rules_by_key.get(rule_name)
+        if rule_type is None:
+            continue
+
+        target_settings = resolved_settings.setdefault(rule_type, {})
+        target_settings.update(settings)
+
+    return resolved_settings
+
+
+def materialize_rules(
+    rule_types: Collection[type[LintRule]],
+    resolved_settings: Mapping[type[LintRule], Mapping[str, object]],
+) -> list[LintRule]:
+    materialized_rules: list[LintRule] = []
+    for rule_type in sorted(rule_types, key=_rule_key_for_type):
+        rule = rule_type()
+        rule.configure(resolved_settings.get(rule_type, {}))
+        materialized_rules.append(rule)
 
     return materialized_rules
+
+
+def collect_rules(
+    config: Config,
+    *,
+    # out-param to capture reasons when disabling rules for debugging
+    debug_reasons: dict[type[LintRule], str] | None = None,
+) -> Collection[LintRule]:
+    """Import, configure, and return rules specified by `enables` and `disables`."""
+    rule_types = collect_rule_types(config, debug_reasons=debug_reasons)
+    resolved_settings = resolve_rule_settings(config, rule_types)
+    return materialize_rules(rule_types, resolved_settings)
 
 
 def locate_configs(path: Path, root: Path | None = None) -> list[Path]:
@@ -339,30 +453,67 @@ def get_sequence(
     value = data.pop(key, ()) if data else config.data.pop(key, ())
 
     if not is_sequence(value):
-        raise ConfigError(f"{key!r} must be array of values, got {type(key)}", config=config)
+        raise ConfigError(f"{key!r} must be array of values, got {type(value)}", config=config)
 
     return value
 
 
-def get_options(
+def get_options(  # noqa: C901 - option parsing and normalization
     config: RawConfig, key: str, *, data: dict[str, Any] | None = None
 ) -> RuleOptionsTable:
     mapping = data.pop(key, {}) if data else config.data.pop(key, {})
 
+    if is_sequence(mapping):
+        merged_mapping: dict[object, object] = {}
+        for item in mapping:
+            if not isinstance(item, Mapping):
+                raise ConfigError(
+                    f"{key!r} sequence values must be mappings, got {type(item)}",
+                    config=config,
+                )
+            merged_mapping.update(item)
+        mapping = merged_mapping
+
     if not isinstance(mapping, Mapping):
-        raise ConfigError(f"{key!r} must be mapping of values, got {type(key)}", config=config)
+        raise ConfigError(f"{key!r} must be mapping of values, got {type(mapping)}", config=config)
 
     rule_configs: RuleOptionsTable = {}
-    for rule_name, rule_config in mapping.items():
+    for raw_rule_name, rule_config in mapping.items():
+        if not isinstance(raw_rule_name, str):
+            raise ConfigError(
+                f"{key!r} rule name must be a string, got {type(raw_rule_name)}",
+                config=config,
+            )
+
+        qualified_rule = parse_rule(raw_rule_name, config.path.parent, config)
+        if not qualified_rule.name:
+            raise ConfigError(
+                f"{key!r} rule target {raw_rule_name!r} must reference one concrete rule (`module:ClassName`)",
+                config=config,
+            )
+
+        if not isinstance(rule_config, Mapping):
+            raise ConfigError(
+                f"{key!r} rule config for {raw_rule_name!r} must be a mapping, got {type(rule_config)}",
+                config=config,
+            )
+
+        rule_name = str(qualified_rule)
         rule_configs[rule_name] = {}
         for option_name, value in rule_config.items():
-            if not isinstance(value, RuleOptionTypes):
+            if not isinstance(option_name, str):
                 raise ConfigError(
-                    f"{option_name!r} must be one of {RuleOptionTypes}, got {type(value)}",
+                    f"{key!r} option names must be strings, got {type(option_name)}",
                     config=config,
                 )
 
-            rule_configs[rule_name][option_name] = value
+            if not is_rule_option_value(value):
+                raise ConfigError(
+                    f"{option_name!r} must be a TOML scalar or array of scalars, got {type(value)}",
+                    config=config,
+                )
+
+            rule_configs[rule_name][option_name] = list(value) if is_sequence(value) else value
 
     return rule_configs
 
@@ -450,7 +601,9 @@ def merge_configs(  # noqa: C901 - config merge orchestration
             disable_rules.add(qual_rule)
 
         if options:
-            rule_options.update(options)
+            for rule_name, option_values in options.items():
+                existing_options = rule_options.setdefault(rule_name, {})
+                existing_options.update(option_values)
 
         update_target_python_version(python_version)
 
@@ -577,7 +730,7 @@ def generate_config(
     return config
 
 
-def validate_config(path: Path) -> list[str]:
+def validate_config(path: Path) -> list[str]:  # noqa: C901 - config validation orchestration
     """
     Validate the config provided. The provided path is expected to be a valid toml
     config file. Any exception found while parsing or importing will be added to a list
@@ -588,17 +741,44 @@ def validate_config(path: Path) -> list[str]:
         root = path.parent
         configs = read_configs([path])[0]
 
-        def validate_rules(rules: list[str], context: str) -> None:
+        def validate_rules(rules: Sequence[str], context: str) -> None:
             for rule in rules:
                 _validate_rule(
                     rule, root=root, config=configs, context=context, exceptions=exceptions
                 )
 
+        def validate_rule_options(rule_options: RuleOptionsTable, context: str) -> None:
+            for rule_name, settings in rule_options.items():
+                error = _validate_rule_option(
+                    rule_name=rule_name,
+                    settings=settings,
+                    root=root,
+                    config=configs,
+                    context=context,
+                )
+                if error:
+                    exceptions.append(error)
+
         data = configs.data
         validate_rules(data.get("enable", []), "global enable")
         validate_rules(data.get("disable", []), "global disable")
 
+        try:
+            global_options = get_options(configs, "options")
+        except Exception as error:  # noqa: BLE001 - validation boundary
+            exceptions.append(
+                f"Failed to parse options for global options: {error.__class__.__name__}: {error}"
+            )
+        else:
+            validate_rule_options(global_options, "global options")
+
         for override in data.get("overrides", []):
+            if not isinstance(override, dict):
+                exceptions.append(
+                    "Failed to parse overrides: ConfigError: 'overrides' requires array of tables"
+                )
+                continue
+
             override_path = Path(override.get("path", path))
             validate_rules(
                 override.get("enable", []),
@@ -608,6 +788,15 @@ def validate_config(path: Path) -> list[str]:
                 override.get("disable", []),
                 f"override disable: `{override_path}`",
             )
+
+            try:
+                override_options = get_options(configs, "options", data=override)
+            except Exception as error:  # noqa: BLE001 - validation boundary
+                exceptions.append(
+                    f"Failed to parse options for override options: `{override_path}`: {error.__class__.__name__}: {error}"
+                )
+            else:
+                validate_rule_options(override_options, f"override options: `{override_path}`")
 
     except Exception as error:  # noqa: BLE001 - validation boundary
         exceptions.append(f"Invalid config: {error.__class__.__name__}: {error}")

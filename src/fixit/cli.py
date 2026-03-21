@@ -312,10 +312,16 @@ def debug(ctx: click.Context, paths: Sequence[Path]) -> None:
         config = generate_config(path, options=options)
         disabled: dict[type[LintRule], str] = {}
         enabled = collect_rules(config, debug_reasons=disabled)
+        resolved_settings = {}
+        for rule in sorted(enabled, key=str):
+            settings = dict(rule.settings)
+            if settings:
+                resolved_settings[str(rule)] = settings
 
         print(">>> ", path)
         pprint(config)
         print("enabled:", sorted(str(rule) for rule in enabled))
+        print("settings:", resolved_settings)
         print(
             "disabled:",
             sorted(f"{rule()} ({reason})" for rule, reason in disabled.items()),

@@ -24,8 +24,10 @@ T = TypeVar("T")
 STDIN = Path("-")
 
 FileContent = bytes
-RuleOptionTypes = (str, int, float)
-RuleOptions = dict[str, str | int | float]
+RuleOptionScalar = str | int | float | bool
+RuleOptionValue = RuleOptionScalar | list[RuleOptionScalar]
+RuleOptionTypes = (str, int, float, bool)
+RuleOptions = dict[str, RuleOptionValue]
 RuleOptionsTable = dict[str, RuleOptions]
 
 NodeReplacement = CSTNodeT | FlattenSentinel[CSTNodeT] | RemovalSentinel
@@ -50,11 +52,13 @@ class Invalid:
     range: CodeRange | None = None
     expected_message: str | None = None
     expected_replacement: str | None = None
+    options: RuleOptions | None = None
 
 
 @dataclass(frozen=True)
 class Valid:
     code: str
+    options: RuleOptions | None = None
 
 
 LintIgnoreRegex = re.compile(
@@ -95,6 +99,16 @@ class QualifiedRuleRegexResult(TypedDict):
 
 def is_sequence(value: object) -> bool:
     return isinstance(value, Sequence) and not isinstance(value, (str, bytes))
+
+
+def is_rule_option_value(value: object) -> bool:
+    if isinstance(value, RuleOptionTypes):
+        return True
+
+    if is_sequence(value):
+        return all(isinstance(item, RuleOptionTypes) for item in value)
+
+    return False
 
 
 def is_collection(value: object) -> bool:

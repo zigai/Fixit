@@ -64,7 +64,7 @@ class LintRunner:
         self.module: Module = parse_module(source)
         self.metrics: Metrics = defaultdict(lambda: 0)
 
-    def collect_violations(
+    def collect_violations(  # noqa: C901 - lint runner orchestration
         self,
         rules: Collection[LintRule],
         config: Config,
@@ -91,6 +91,8 @@ class LintRunner:
         needs_repo_manager: set[ProviderT] = set()
 
         for rule in rules:
+            if rule.SETTINGS and not rule.settings:
+                rule.configure({})
             rule._visit_hook = visit_hook
             for provider in rule.get_inherited_dependencies():
                 if provider.gen_cache is not None:

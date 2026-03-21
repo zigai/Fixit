@@ -10,7 +10,7 @@ from typing import cast
 import libcst as cst
 import libcst.matchers as m
 
-from fixit import Invalid, LintRule, Valid
+from fixit import Invalid, LintRule, RuleSetting, Valid
 
 USE_FSTRING_SIMPLE_EXPRESSION_MAX_LENGTH = 30
 
@@ -29,6 +29,7 @@ def _match_simple_string(node: cst.BaseExpression) -> bool:
 
 def _gen_match_simple_expression(
     codegen: Callable[[cst.CSTNode], str],
+    simple_expression_max_length: int,
 ) -> Callable[[cst.BaseExpression], bool]:
     def _match_simple_expression(node: cst.BaseExpression) -> bool:
         # either each element in Tuple is simple expression or the entire expression is simple.
@@ -36,11 +37,10 @@ def _gen_match_simple_expression(
             (
                 isinstance(node, cst.Tuple)
                 and all(
-                    len(codegen(elm.value)) < USE_FSTRING_SIMPLE_EXPRESSION_MAX_LENGTH
-                    for elm in node.elements
+                    len(codegen(elm.value)) < simple_expression_max_length for elm in node.elements
                 )
             )
-            or len(codegen(node)) < USE_FSTRING_SIMPLE_EXPRESSION_MAX_LENGTH
+            or len(codegen(node)) < simple_expression_max_length
         )
 
     return _match_simple_expression
@@ -97,6 +97,12 @@ class UseFstring(LintRule):
         "Use f-string instead to be more readable and efficient. "
         "See https://www.python.org/dev/peps/pep-0498/"
     )
+    SETTINGS = {
+        "simple_expression_max_length": RuleSetting(
+            int,
+            default=USE_FSTRING_SIMPLE_EXPRESSION_MAX_LENGTH,
+        ),
+    }
 
     VALID = [
         Valid("somebody='you'; f\"Hey, {somebody}.\""),
@@ -125,6 +131,11 @@ class UseFstring(LintRule):
         ),
         Invalid(
             '"%s" % obj.this_is_a_very_long_expression(parameter)["a_very_long_key"]',
+        ),
+        Invalid(
+            '"%s" % abcdefghijklmnopqrstuvwxyz1234567890',
+            expected_replacement='f"{abcdefghijklmnopqrstuvwxyz1234567890}"',
+            options={"simple_expression_max_length": 100},
         ),
         Invalid(
             '"type of var: %s, value of var: %s" % (type(var), var)',
@@ -161,6 +172,8 @@ class UseFstring(LintRule):
         codegen = self._codegen
         if not codegen:
             raise ValueError("No codegen found. Have we visited a Module?")
+        simple_expression_max_length = self.settings["simple_expression_max_length"]
+        assert isinstance(simple_expression_max_length, int)
 
         expr_key = "expr"
         extracts = m.extract(
@@ -169,7 +182,9 @@ class UseFstring(LintRule):
                 left=m.MatchIfTrue(_match_simple_string),
                 operator=m.Modulo(),
                 right=m.SaveMatchedNode(
-                    m.MatchIfTrue(_gen_match_simple_expression(codegen)),
+                    m.MatchIfTrue(
+                        _gen_match_simple_expression(codegen, simple_expression_max_length)
+                    ),
                     expr_key,
                 ),
             ),
