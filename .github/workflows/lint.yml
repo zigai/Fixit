@@ -1,0 +1,25 @@
+name: Lint
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: pyproject.toml
+          python-version: "3.12"
+          activate-environment: true
+      - name: Install
+        run: uv sync --inexact --extra dev
+      - name: Check formatting with Ruff
+        run: uv run --extra dev ruff format --check src/fixit scripts examples docs/conf.py
+      - name: Run Ruff lint
+        run: uv run --extra dev ruff check src/fixit scripts examples docs/conf.py
+      - name: Run Fixit lint
+        run: uv run --extra dev python -m fixit lint src/fixit

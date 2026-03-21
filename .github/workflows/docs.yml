@@ -1,0 +1,29 @@
+name: Docs
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: pyproject.toml
+          python-version: "3.12"
+          activate-environment: true
+      - name: Install
+        run: uv sync --inexact --extra docs
+      - name: Generate docs
+        run: uv run --extra docs python scripts/document_rules.py
+      - name: Build docs
+        run: uv run --extra docs sphinx-build -ab html docs html
+      - name: Check generated changes
+        run: git diff --exit-code

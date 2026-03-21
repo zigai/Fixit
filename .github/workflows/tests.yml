@@ -1,0 +1,28 @@
+name: Tests
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: pyproject.toml
+          cache-suffix: ${{ matrix.python-version }}
+          python-version: ${{ matrix.python-version }}
+          activate-environment: true
+      - name: Install
+        run: uv sync --inexact --extra dev --extra lsp
+      - name: Run pytest
+        run: uv run --extra dev --extra lsp pytest
