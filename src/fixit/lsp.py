@@ -29,7 +29,7 @@ from pygls.workspace.text_document import TextDocument
 
 from .__version__ import __version__
 from .api import fixit_bytes
-from .config import generate_config
+from .config import generate_config, locate_configs
 from .ftypes import Config, FileContent, LSPOptions, Options, Result
 from .util import capture
 
@@ -45,7 +45,7 @@ class LSP:
         self.fixit_options = fixit_options
         self.lsp_options = lsp_options
 
-        self._config_cache: dict[Path, Config] = {}
+        self._config_cache: dict[Path, tuple[tuple[tuple[str, int], ...], Config]] = {}
 
         # separate debounce timer per URI so that linting one URI
         # doesn't cancel linting another
@@ -59,9 +59,31 @@ class LSP:
 
     def load_config(self, path: Path) -> Config:
         """Cached fetch of fixit.toml(s) for fixit_bytes."""
-        if path not in self._config_cache:
-            self._config_cache[path] = generate_config(path, options=self.fixit_options)
-        return self._config_cache[path]
+        fingerprint = self._config_fingerprint(path)
+        cached = self._config_cache.get(path)
+        if cached and cached[0] == fingerprint:
+            return cached[1]
+
+        config = generate_config(path, options=self.fixit_options)
+        self._config_cache[path] = (fingerprint, config)
+        return config
+
+    def _config_fingerprint(self, path: Path) -> tuple[tuple[str, int], ...]:
+        if self.fixit_options.config_file:
+            config_paths = [self.fixit_options.config_file]
+        else:
+            config_paths = locate_configs(path)
+
+        fingerprint: list[tuple[str, int]] = []
+        for config_path in config_paths:
+            resolved = config_path.resolve()
+            try:
+                mtime_ns = resolved.stat().st_mtime_ns
+            except FileNotFoundError:
+                mtime_ns = -1
+            fingerprint.append((resolved.as_posix(), mtime_ns))
+
+        return tuple(fingerprint)
 
     def diagnostic_generator(
         self, uri: str, autofix: bool = False
