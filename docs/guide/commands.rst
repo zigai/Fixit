@@ -160,6 +160,7 @@ Example:
 ^^^^^^^^^
 
 Debug options for validating Fixit configuration.
+Prints resolved config data, enabled/disabled rules, and resolved rule settings.
 
 .. code:: console
 

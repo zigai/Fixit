@@ -10,6 +10,7 @@ Lint Rules
 ----------
 
 .. autoclass:: LintRule
+.. autoclass:: RuleSetting
 .. autoclass:: Valid
 .. autoclass:: Invalid
 

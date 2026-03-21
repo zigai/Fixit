@@ -203,12 +203,18 @@ The main configuration table.
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The ``options`` table allows setting options for individual lint rules,
-by mapping the fully-qualified rule name to a dictionary of key/value pairs:
+by mapping a concrete rule target (``module:ClassName``) to a dictionary of
+key/value pairs:
 
 .. code-block:: toml
 
     [tool.fixit.options]
     "fixit.rules:ExampleRule" = {greeting = "hello world"}
+
+Option keys must point to one concrete lint rule class, not a package/module.
+Keys should be quoted when using ``:`` or a leading ``.``.
+
+Option values may be TOML scalars or arrays of scalars.
 
 Alternatively, for rules with a large number of options, the rule name can
 be included in the table name for easier usage. Note that the quotes in the
@@ -237,9 +243,9 @@ defining the subpath it applies to, along with any values from the tables above:
     path = "foo/bar"
     disable = ["fixit.rules:ExampleRule"]
 
-    [[tool.fixit.overrides.options]]
+    [tool.fixit.overrides.options."fixit.rules:Story"]
     # applies to the above override path only
-    "fixit.rules:Story" = {closing = "goodnight moon"}
+    closing = "goodnight moon"
 
     [[tool.fixit.overrides]]
     path = "fizz/buzz"

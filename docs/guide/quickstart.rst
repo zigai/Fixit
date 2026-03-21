@@ -146,10 +146,14 @@ in a single unit. A (very) simple rule looks like this:
 
     # teambread/rules/hollywood.py
 
-    from fixit import LintRule, Invalid, Valid
+    from fixit import LintRule, RuleSetting, Invalid, Valid
     import libcst
 
     class HollywoodNameRule(LintRule):
+        SETTINGS = {
+            "preferred_name": RuleSetting(str, default="Mary"),
+        }
+
         # clean code samples
         VALID = [
             Valid('name = "Susan"'),
@@ -161,7 +165,8 @@ in a single unit. A (very) simple rule looks like this:
 
         def visit_SimpleString(self, node: libcst.SimpleString) -> None:
             if node.value in ('"Paul"', "'Paul'"):
-                self.report(node, "It's underproved!")
+                preferred_name = self.settings["preferred_name"]
+                self.report(node, f'Use "{preferred_name}" instead')
 
 Rules can suggest auto-fixes for the user by including a replacement CST node
 when reporting an error:
