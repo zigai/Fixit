@@ -60,24 +60,56 @@ When running Fixit, we see two separate lint errors:
 .. code:: console
 
     $ fixit lint custom_object.py
-    custom_object.py@4:15 UseFstring: Do not use printf style formatting or .format(). Use f-string instead to be more readable and efficient. See https://www.python.org/dev/peps/pep-0498/
-    custom_object.py@2:0 NoInheritFromObject: Inheriting from object is a no-op.  'class Foo:' is just fine =)
+    NoInheritFromObject [*] Inheriting from object is a no-op.  'class Foo:' is just fine =)
+     --> custom_object.py:1:1
+      |
+    1 | class Foo(object):
+      | ^^^^^^^^^^^^^^^^^^
+    2 |     def bar(self, value: str) -> str:
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    3 |         return "value is {}".format(value)
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      |
+    help: Apply the available autofix
+
+    UseFstring Do not use printf style formatting or .format(). Use f-string instead to be more readable and efficient. See https://www.python.org/dev/peps/pep-0498/
+     --> custom_object.py:3:16
+      |
+    2 |     def bar(self, value: str) -> str:
+    3 |         return "value is {}".format(value)
+      |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      |
 
 We can also see any suggested changes by passing ``--diff``:
 
 .. code:: console
 
     $ fixit lint --diff custom_object.py
-    custom_object.py@7:0 NoInheritFromObject: Inheriting from object is a no-op.  'class Foo:' is just fine =) (has autofix)
+    NoInheritFromObject [*] Inheriting from object is a no-op.  'class Foo:' is just fine =)
+     --> custom_object.py:1:1
+      |
+    1 | class Foo(object):
+      | ^^^^^^^^^^^^^^^^^^
+    2 |     def bar(self, value: str) -> str:
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    3 |         return "value is {}".format(value)
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      |
+    help: Apply the available autofix
     --- a/custom_object.py
     +++ b/custom_object.py
-    @@ -6,3 +6,3 @@
-    # Triggers built-in lint rules
+    @@ -1,2 +1,2 @@
     -class Foo(object):
     +class Foo:
         def bar(self, value: str) -> str:
-    custom_object.py@9:15 UseFstring: Do not use printf style formatting or .format(). Use f-string instead to be more readable and efficient. See https://www.python.org/dev/peps/pep-0498/
-    🛠️  1 file checked, 1 file with errors, 1 auto-fix available 🛠️
+
+    UseFstring Do not use printf style formatting or .format(). Use f-string instead to be more readable and efficient. See https://www.python.org/dev/peps/pep-0498/
+     --> custom_object.py:3:16
+      |
+    2 |     def bar(self, value: str) -> str:
+    3 |         return "value is {}".format(value)
+      |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      |
 
 
 .. _suppressions:
@@ -220,15 +252,22 @@ Once enabled, Fixit can run that new lint rule against the codebase:
 .. code:: console
 
     $ fixit lint --diff sourdough/baker.py
-    sourdough/baker.py@7:11 HollywoodName: It's underproved! (has autofix)
+    HollywoodName [*] It's underproved!
+     --> sourdough/baker.py:2:12
+      |
+    1 | def main():
+    2 |     name = "Paul"
+      |            ^^^^^^
+    3 |     print(f"hello {name}")
+      |
+    help: Apply the available autofix
     --- a/baker.py
     +++ b/baker.py
-    @@ -6,3 +6,3 @@
-    def main():
+    @@ -1,3 +1,3 @@
+     def main():
     -    name = "Paul"
     +    name = "Mary"
         print(f"hello {name}")
-    🛠️  1 file checked, 1 file with errors, 1 auto-fix available 🛠️
     [1]
 
 Note that the ``lint`` command only shows lint errors (and suggested changes).
@@ -237,8 +276,16 @@ The ``fix`` command will apply these suggested changes to the codebase:
 .. code:: console
 
     $ fixit fix --automatic sourdough/baker.py
-    sourdough/baker.py@7:11 HollywoodName: It's underproved! (has autofix)
-    🛠️  1 file checked, 1 file with errors, 1 auto-fix available, 1 fix applied 🛠️
+    HollywoodName [*] It's underproved!
+     --> sourdough/baker.py:2:12
+      |
+    1 | def main():
+    2 |     name = "Paul"
+      |            ^^^^^^
+    3 |     print(f"hello {name}")
+      |
+    help: Apply the available autofix
+    1 file checked, 1 file with errors, 1 auto-fix available, 1 fix applied
 
 By default, the ``fix`` command will interactively prompt the user for each
 suggested change available, which the user can then accept or decline.
@@ -248,4 +295,4 @@ Now that the suggested changes have been applied, the codebase is clean:
 .. code:: console
 
     $ fixit lint sourdough/baker.py
-    🧼 1 file clean 🧼
+    1 file clean

@@ -162,15 +162,10 @@ The main configuration table.
 
     - ``custom``: Specify your own format using the :attr:`output-template`
       option below.
-    - ``fixit``: Fixit's default output format.
-    - ``vscode``: A format that provides clickable paths for Visual Studio Code.
-
-    .. note::
-
-        The default output format is planned to change to ``vscode`` in
-        the next feature release, expected as part of ``v2.3`` or ``v3.0``.
-        If you are sensitive to output formats changing, specify your preferred
-        format in your project configs accordingly.
+    - ``fixit``: Fixit's default human-readable format, with Ruff-style headers,
+      source snippets, and autofix help.
+    - ``vscode``: A single-line format that provides clickable paths for Visual
+      Studio Code.
 
 .. attribute:: output-template
     :type: str
