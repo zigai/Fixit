@@ -104,17 +104,16 @@ def main() -> None:
     qrules = sorted(QualifiedRule(r) for r in RULES)
     packages = {qrule: list(find_rules(qrule)) for qrule in qrules}
 
-    RULES_DOC.write_text(
-        PAGE_TPL.render(
-            dedent=dedent,
-            indent=indent,
-            redent=redent,
-            hasattr=hasattr,
-            len=len,
-            repr=repr,
-            packages=packages,
-        )
+    rendered = PAGE_TPL.render(
+        dedent=dedent,
+        indent=indent,
+        redent=redent,
+        hasattr=hasattr,
+        len=len,
+        repr=repr,
+        packages=packages,
     )
+    RULES_DOC.write_text(rendered.rstrip() + "\n")
 
 
 if __name__ == "__main__":
