@@ -66,10 +66,25 @@ class SmokeTest(TestCase):
 
                 assert result.output != ""
                 assert result.exit_code != 0
-                assert re.search(
-                    r"file\.py@\d+:\d+ NoRedundantFString: .+ \(has autofix\)", result.output
-                )
+                assert "NoRedundantFString [*]" in result.output
+                assert re.search(r" --> .*file\.py:5:13", result.output)
+                assert '5 |     value = f"hello world"' in result.output
+                assert "help: Apply the available autofix" in result.output
                 assert content == path.read_text(), "file unexpectedly changed"
+
+            with self.subTest("linting with diff"):
+                path.write_text(content)
+                result = self.runner.invoke(
+                    main,
+                    ["lint", "--diff", path.as_posix()],
+                    catch_exceptions=False,
+                )
+
+                assert result.output != ""
+                assert result.exit_code != 0
+                assert "NoRedundantFString [*]" in result.output
+                assert "--- a/file.py" in result.output
+                assert "+++ b/file.py" in result.output
 
             with self.subTest("fixing"):
                 path.write_text(content)
@@ -81,9 +96,8 @@ class SmokeTest(TestCase):
 
                 assert result.output != ""
                 assert result.exit_code == 0
-                assert re.search(
-                    r"file\.py@\d+:\d+ NoRedundantFString: .+ \(has autofix\)", result.output
-                )
+                assert "NoRedundantFString [*]" in result.output
+                assert re.search(r" --> .*file\.py:5:13", result.output)
                 assert expected_fix == path.read_text(), "unexpected file output"
 
             with self.subTest("fixing with formatting"):
@@ -98,9 +112,8 @@ class SmokeTest(TestCase):
 
                 assert result.output != ""
                 assert result.exit_code == 0
-                assert re.search(
-                    r"file\.py@\d+:\d+ NoRedundantFString: .+ \(has autofix\)", result.output
-                )
+                assert "NoRedundantFString [*]" in result.output
+                assert re.search(r" --> .*file\.py:5:13", result.output)
                 assert expected_format == path.read_text(), "unexpected file output"
 
             with self.subTest("linting via stdin"):
@@ -113,9 +126,9 @@ class SmokeTest(TestCase):
 
                 assert result.output != ""
                 assert result.exit_code != 0
-                assert re.search(
-                    r"file\.py@\d+:\d+ NoRedundantFString: .+ \(has autofix\)", result.output
-                )
+                assert "NoRedundantFString [*]" in result.output
+                assert re.search(r" --> .*file\.py:5:13", result.output)
+                assert '5 |     value = f"hello world"' in result.output
 
             with self.subTest("fixing with formatting via stdin"):
                 result = self.runner.invoke(
@@ -162,6 +175,7 @@ class SmokeTest(TestCase):
         result = self.runner.invoke(main, ["lint", path], catch_exceptions=False)
         assert result.output == ""
         assert result.exit_code == 0
+        assert result.stderr == "1 file clean\n"
 
     def test_this_project_is_clean(self) -> None:
         project_dir = Path(__file__).resolve().parent.parent.as_posix()
@@ -176,8 +190,10 @@ class SmokeTest(TestCase):
             (tdp / "dirty.py").write_text("name = 'Kirby'\nprint('hello %s' % name)\n")
 
             result = self.runner.invoke(main, ["lint", td])
-            assert "dirty.py@2:6 UseFstring:" in result.output
+            assert "UseFstring [*] Do not use printf style formatting" in result.output
+            assert re.search(r" --> .*dirty\.py:2:7", result.output)
             assert result.exit_code == 1
+            assert result.stderr == "2 files checked, 1 file with errors, 1 auto-fix available\n"
 
     def test_directory_with_errors(self) -> None:
         with TemporaryDirectory() as td:
@@ -186,7 +202,8 @@ class SmokeTest(TestCase):
             (tdp / "broken.py").write_text("print)\n")
 
             result = self.runner.invoke(main, ["lint", td])
-            assert "broken.py: EXCEPTION: Syntax Error @ 1:" in result.output
+            assert "invalid-syntax: tokenizer error: unmatched ')'" in result.output
+            assert re.search(r" --> .*broken\.py:1:1", result.output)
             assert result.exit_code == 2
 
     def test_directory_with_violations_and_errors(self) -> None:
@@ -197,8 +214,10 @@ class SmokeTest(TestCase):
             (tdp / "broken.py").write_text("print)\n")
 
             result = self.runner.invoke(main, ["lint", td])
-            assert "dirty.py@2:6 UseFstring:" in result.output
-            assert "broken.py: EXCEPTION: Syntax Error @ 1:" in result.output
+            assert "UseFstring [*] Do not use printf style formatting" in result.output
+            assert re.search(r" --> .*dirty\.py:2:7", result.output)
+            assert "invalid-syntax: tokenizer error: unmatched ')'" in result.output
+            assert re.search(r" --> .*broken\.py:1:1", result.output)
             assert result.exit_code == 3
 
     def test_directory_with_autofixes(self) -> None:
@@ -248,10 +267,13 @@ class SmokeTest(TestCase):
 
             result = self.runner.invoke(main, ["fix", "--automatic", td])
             errors = defaultdict(list)
-            for line in result.output.splitlines():
-                fn, _, error = line.partition("@")
-                short, _, _ = error.partition(": ")
-                errors[Path(fn)].append(short)
+            pattern = re.compile(
+                r"(?m)^(?P<header>[^\n]+)\n --> (?P<path>.+):(?P<line>\d+):(?P<col>\d+)$"
+            )
+            for match in pattern.finditer(result.output):
+                rule_name = match.group("header").split(" ", 1)[0]
+                location = f"{match.group('line')}:{match.group('col')} {rule_name}"
+                errors[Path(match.group("path"))].append(location)
 
             with self.subTest("clean"):
                 assert [] == errors[clean]
@@ -259,15 +281,15 @@ class SmokeTest(TestCase):
 
             with self.subTest("single fix"):
                 assert [
-                    "2:9 NoRedundantFString",
+                    "2:10 NoRedundantFString",
                 ] == sorted(errors[single])
                 assert expected == single.read_text()
 
             with self.subTest("multiple fixes"):
                 assert [
-                    "2:9 NoRedundantFString",
-                    "5:12 NoRedundantFString",
-                    "6:7 CompareSingletonPrimitivesByIs",
+                    "2:10 NoRedundantFString",
+                    "5:13 NoRedundantFString",
+                    "6:8 CompareSingletonPrimitivesByIs",
                 ] == sorted(errors[multi])
                 assert expected == multi.read_text()
 
