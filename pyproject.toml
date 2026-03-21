@@ -128,6 +128,18 @@ python_files = [
     "smoke.py",
 ]
 
+[tool.coverage.run]
+omit = [
+    "/tmp/*",
+    "*/tmp/*",
+]
+
+[tool.coverage.report]
+omit = [
+    "/tmp/*",
+    "*/tmp/*",
+]
+
 [tool.ruff]
 line-length = 100
 
